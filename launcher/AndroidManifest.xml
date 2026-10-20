@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ZeroPulse TV 2.1. The package ID and the .MainActivity HOME entry are unchanged from Calm Home 1.0 on purpose:
+  the TV's Home setting points at tv.calmhome.launcher/.MainActivity and the saved dock lives in this package.
+  One permission: INTERNET (normal, granted at install), used only by the Assistant's JARVIS link to the PC
+  (TLS 1.3, certificate pinned, only while the Assistant is open). Home makes no network calls.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="tv.calmhome.launcher"
+    android:versionCode="21"
+    android:versionName="2.1">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- Android 11+ package visibility: lets the launcher see the apps it lists -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <package android:name="com.tcl.tv" />
+    </queries>
+
+    <application
+        android:label="ZeroPulse TV"
+        android:icon="@drawable/zp_icon"
+        android:banner="@drawable/zp_banner"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:clearTaskOnLaunch="true"
+            android:excludeFromRecents="true"
+            android:resumeWhilePausing="true"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|density|fontScale|locale|layoutDirection">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".assistant.AssistantActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape"
+            android:windowSoftInputMode="adjustPan"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|density|fontScale|locale|layoutDirection" />
+    </application>
+</manifest>

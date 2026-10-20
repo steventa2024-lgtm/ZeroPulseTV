@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ZeroPulse pulse mark on Midnight Navy (original artwork). Same polyline as PulseLogo.PULSE. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#0A1220" android:pathData="M24,0h60a24,24 0 0 1 24,24v60a24,24 0 0 1 -24,24h-60a24,24 0 0 1 -24,-24v-60a24,24 0 0 1 24,-24z" />
+    <path
+        android:strokeColor="#5535D6FF"
+        android:strokeWidth="9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18,54 L35.2,54 L41.2,46.4 L47.2,54 L54.9,54 L61.7,30.2 L69.4,79.8 L76.2,54 L83.9,54 L89,47.5 L94.1,54" />
+    <path
+        android:strokeColor="#2F80FF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18,54 L35.2,54 L41.2,46.4 L47.2,54 L54.9,54 L61.7,30.2 L69.4,79.8 L76.2,54 L83.9,54 L89,47.5 L94.1,54" />
+</vector>

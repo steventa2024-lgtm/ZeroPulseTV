@@ -1,0 +1,25 @@
+# Toolchain (download separately, see docs/BUILDING.md)
+tools/
+
+# Build output and binaries (APKs are published as GitHub Release assets, not in Git)
+launcher/build/
+*.apk
+*.idsig
+*.aab
+qa/build/
+
+# Signing material: never commit
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+keystore.pass
+*.pass
+local.properties
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

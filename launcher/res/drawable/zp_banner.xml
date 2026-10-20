@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 16:9 TV banner: navy gradient-free panel with the ZeroPulse pulse mark (original artwork). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#06090D" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#101A2B" android:pathData="M0,120h320v60h-320z" />
+    <path
+        android:strokeColor="#4435D6FF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M60,90 L104,90 L119.4,70.6 L134.8,90 L154.6,90 L172.2,29 L192,156 L209.6,90 L229.4,90 L242.6,73.4 L255.8,90" />
+    <path
+        android:strokeColor="#2F80FF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M60,90 L104,90 L119.4,70.6 L134.8,90 L154.6,90 L172.2,29 L192,156 L209.6,90 L229.4,90 L242.6,73.4 L255.8,90" />
+</vector>

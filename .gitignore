@@ -1,5 +1,5 @@
 # Toolchain (download separately, see docs/BUILDING.md)
-tools/
+/tools/
 
 # Build output and binaries (APKs are published as GitHub Release assets, not in Git)
 launcher/build/

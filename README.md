@@ -29,7 +29,7 @@ Read [COMPATIBILITY.md](COMPATIBILITY.md) before installing.
 | | | |
 |---|---|---|
 | ![All apps](docs/screenshots/02-all-apps.png) | ![Inputs](docs/screenshots/03-inputs.png) | ![Wallpapers](docs/screenshots/04-wallpapers.png) |
-| ![Settings](docs/screenshots/05-settings.png) | ![About](docs/screenshots/06-about.png) | ![Assistant](docs/screenshots/07-assistant-local-mode.png) |
+| ![Settings](docs/screenshots/05-settings.png) | ![Assistant](docs/screenshots/07-assistant-local-mode.png) |
 
 All screenshots are from a real TCL TV running this release.
 

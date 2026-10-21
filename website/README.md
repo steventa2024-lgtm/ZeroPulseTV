@@ -30,7 +30,7 @@ Import the repository into the owner's authorized Vercel account/team after revi
 - Install Command: empty/skipped; no npm dependencies.
 - Environment variables: none required.
 
-The included root `vercel.json` declares these settings and security headers. A successful deployment URL has not been obtained. Do not guess a production hostname, change DNS, delete the Lovable project, or modify ZeroPulseDev.com.
+The included root `vercel.json` declares these settings and security headers. Production: https://zeropulse-tv.vercel.app/ (Vercel project `zeropulse-tv`, Git-connected; `main` deploys to production, other branches to authentication-protected previews). Do not change DNS, delete the Lovable project, or modify ZeroPulseDev.com.
 
 ## UX behavior
 
@@ -51,4 +51,4 @@ The first seven existing repository screenshots are reused with their original p
 
 ## Validation scope
 
-13 Node source-contract tests passed. JavaScript syntax passed. 17 offline Chromium interaction assertions passed at 390px and 1440px with image/prompt fixtures. These are not real-photo rendering, a full asset build, live Vercel testing, or a real TV installation. Complete those checks before declaring the website deployed.
+18 Node source-contract tests pass locally, in GitHub Actions and in the Vercel build, which also verifies the 7 screenshot blobs and the byte-identical prompt. The live production site (2026-10-20) serves files identical to a local build; the APK downloaded through its link matches SHA-256 `ac6ac5a4…52f0401` and 5,744,160 bytes; repository files (`.git`, sources, `vercel.json`) return 404; security headers are present. Copy, manual-copy fallback, disclosures, lightbox focus return and the mobile menu were checked in Chromium at 375 px and desktop width. A real paste into a Claude Code session and a real TV installation from the website were not tested.

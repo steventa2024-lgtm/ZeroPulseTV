@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk"><strong>Download APK</strong></a> ·
   <a href="#guided-setup-with-claude-code"><strong>Guided setup</strong></a> ·
-  <a href="https://zeropulse-tv.lovable.app/">Website</a> ·
+  <a href="https://zeropulse-tv.vercel.app/">Website</a> ·
   <a href="INSTALL.md">Install &amp; recovery</a> ·
   <a href="https://github.com/steventa2024-lgtm/ZeroPulseTV/issues">Feedback</a>
 </p>

@@ -1,0 +1,23 @@
+{
+  "version": "2.1",
+  "tag": "v2.1.0-beta.1",
+  "repo": "https://github.com/steventa2024-lgtm/ZeroPulseTV",
+  "apk": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk",
+  "checksums": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/SHA256SUMS.txt",
+  "notes": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/v2.1.0-beta.1",
+  "install": "https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/INSTALL.md",
+  "prompt": "https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/docs/claude-install-prompt.txt",
+  "sha256": "ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401",
+  "certificate": "0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd",
+  "bytes": 5744160,
+  "filename": "ZeroPulseTV-v2.1.0-beta.1.apk",
+  "screenshots": {
+    "01-home.png": "9765eb07f8428099131a34438106b5a357101bb7",
+    "02-all-apps.png": "44719e8b9e452dad522c7149e902c0d4b15260d3",
+    "03-inputs.png": "04dc5f2eafeb2f85d78792a2be76217ee4004a8a",
+    "04-wallpapers.png": "f1345806f24ab3f424369d8bfe27ec478cb148b8",
+    "05-settings.png": "7cc5c5fbbe55ed518efa733dd0cf4b83446b1256",
+    "06-about.png": "c91513623a8d0cbe32dba033df8152ad82a4186d",
+    "07-assistant-local-mode.png": "e77c282fb415d2021c26889dd7b5c2683e3d083e"
+  }
+}

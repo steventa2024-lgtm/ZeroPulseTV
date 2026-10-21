@@ -145,4 +145,4 @@ The Android app uses Java and Android SDK command-line tools. See [building from
 
 ---
 
-**Built by ZeroPulse.** Independent of Google, TCL, Anthropic and the streaming services shown. Names and app logos belong to their respective owners. The reference project’s popularity metrics, press mentions and device-support counts are not claims made by ZeroPulse TV.
+**Built by ZeroPulse.** Independent of Google, TCL, Anthropic and the streaming services shown. Names and app logos belong to their respective owners.

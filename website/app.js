@@ -27,6 +27,16 @@ $$('[data-os]').forEach(button => button.addEventListener('click', () => {
   $$('[data-os]').forEach(other => other.setAttribute('aria-pressed', String(button === other)));
   $('#os-hint').textContent = hints[button.dataset.os];
 }));
+// Dialogs return focus to the control that opened them (Escape and Close alike).
+function openDialog(dialog, opener) {
+  dialog.returnTarget = opener || document.activeElement;
+  dialog.showModal();
+}
+$$('dialog').forEach(dialog => dialog.addEventListener('close', () => {
+  const target = dialog.returnTarget;
+  dialog.returnTarget = null;
+  if (target && document.contains(target)) target.focus();
+}));
 let promptText = '';
 async function copyText(text, status) {
   if (!text) return false;
@@ -39,7 +49,7 @@ async function copyText(text, status) {
     status.textContent = 'Automatic copy was blocked. Select and copy the text in the dialog.';
     const dialog = $('#copy-fallback');
     $('#fallback-text').value = text;
-    dialog.showModal();
+    openDialog(dialog);
     $('#fallback-text').focus();
     $('#fallback-text').select();
     return false;
@@ -52,7 +62,7 @@ fetch('claude-install-prompt.txt', { cache: 'no-cache' }).then(async response =>
   promptText = text;
   $('#prompt-text').value = promptText;
   $('#copy-prompt').disabled = false;
-  $('#copy-prompt').textContent = 'Copy Claude Code prompt';
+  $('#copy-prompt').textContent = 'Copy installation prompt';
   $('#copy-prompt-secondary').disabled = false;
 }).catch(() => {
   $('#copy-prompt').textContent = 'Prompt unavailable';
@@ -60,6 +70,7 @@ fetch('claude-install-prompt.txt', { cache: 'no-cache' }).then(async response =>
 });
 ['#copy-prompt', '#copy-prompt-secondary'].forEach(selector => $(selector).addEventListener('click', () => copyText(promptText, $('#copy-status'))));
 $('#close-copy-fallback').addEventListener('click', () => $('#copy-fallback').close());
+$('#open-preview').addEventListener('click', () => { $('#prompt-preview').open = true; });
 let noticeTimer;
 $$('.copy-value').forEach(button => button.addEventListener('click', async () => {
   const status = $('#notification');
@@ -83,7 +94,7 @@ $$('.image-open').forEach(button => button.addEventListener('click', () => {
   $('#lightbox-image').alt = button.dataset.caption;
   $('#lightbox-caption').textContent = button.dataset.caption;
   $('#original-image').href = button.dataset.image;
-  $('#lightbox').showModal();
+  openDialog($('#lightbox'), button);
 }));
 $('#close-lightbox').addEventListener('click', () => $('#lightbox').close());
 showStep(0, false);

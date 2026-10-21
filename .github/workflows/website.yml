@@ -1,0 +1,31 @@
+name: Website checks
+on:
+  push:
+    branches: [main]
+    paths: ['website/**', 'vercel.json', 'docs/claude-install-prompt.txt', 'docs/screenshots/**', 'branding/logo/**', '.github/workflows/website.yml']
+  pull_request:
+    paths: ['website/**', 'vercel.json', 'docs/claude-install-prompt.txt', 'docs/screenshots/**', 'branding/logo/**', '.github/workflows/website.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: node --check website/app.js
+      - name: Test website contracts
+        run: node --test website/test.mjs
+      - name: Build and verify original repository screenshots
+        run: node website/build.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zeropulse-tv-website
+          path: website/dist/
+          retention-days: 14
+          if-no-files-found: error

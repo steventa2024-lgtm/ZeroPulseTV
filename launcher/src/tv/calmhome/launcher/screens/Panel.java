@@ -62,6 +62,14 @@ public abstract class Panel {
     /** Requests the initial focus once the panel is on screen. */
     public abstract void focusFirst();
 
+    private Navigation navigation;
+
+    /** Empty lists still need a remote target when Android reports no inputs or launchable apps. */
+    public final void focusContentOrTab() {
+        focusFirst();
+        if (navigation != null && !view().hasFocus()) navigation.focusCurrent();
+    }
+
     /** Back pressed while this panel is on top. Return true if handled inside the panel. */
     public boolean onBack() {
         return false;
@@ -123,7 +131,8 @@ public abstract class Panel {
 
         String tab = this instanceof AppsPanel ? "Apps" : this instanceof InputsPanel ? "Inputs" :
                 this instanceof DownloadPage ? "Downloads" : "Settings";
-        col.addView(new Navigation(host, tab), new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
+        navigation = new Navigation(host, tab);
+        col.addView(navigation, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
         TextView h = t.text(c, Theme.T_HEADING, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
         h.setPadding(0, t.dp(12), 0, 0);
         if (this instanceof DownloadsPanel) {

@@ -26,8 +26,9 @@ const save = (name, data) => writeFileSync(path.join(output, name), data);
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const decode = s => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
 function tree() {
-  const xml = adb('exec-out', 'uiautomator', 'dump', '/dev/tty').toString();
-  assert.ok(xml.includes('</hierarchy>'), 'UIAutomator did not return a complete accessibility hierarchy');
+  const dump = adb('exec-out', 'uiautomator', 'dump', '/dev/tty').toString();
+  const xml = dump.match(/<\?xml[\s\S]*?<\/hierarchy>/)?.[0];
+  assert.ok(xml, 'UIAutomator did not return a complete accessibility hierarchy');
   const nodes = [...xml.matchAll(/<node\s+[^>]*>/g)].map(([tag]) => {
     const n = Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, k, v]) => [k, decode(v)]));
     n.label = n['content-desc'] || n.text || '';

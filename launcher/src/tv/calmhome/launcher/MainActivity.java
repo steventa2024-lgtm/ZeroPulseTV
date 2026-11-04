@@ -436,7 +436,9 @@ public class MainActivity extends Activity implements Panel.Host {
         v.setAlpha(0f);
         root.addView(v, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         v.animate().alpha(1f).setDuration(theme.fadeMs(180)).start();
-        v.post(() -> p.focusFirst());
+        v.post(() -> {
+            if (!panels.isEmpty() && panels.get(panels.size() - 1) == p) p.focusContentOrTab();
+        });
     }
 
     @Override
@@ -460,7 +462,7 @@ public class MainActivity extends Activity implements Panel.Host {
         }
         if (back != null && back.isAttachedToWindow() && back.requestFocus()) return;
         if (panels.isEmpty()) focusFirstDockTile();
-        else panels.get(panels.size() - 1).focusFirst();
+        else panels.get(panels.size() - 1).focusContentOrTab();
     }
 
     @Override

@@ -1,25 +1,18 @@
 # Download Center emulator acceptance
 
-This instrumentation APK only runs on a disposable Android Emulator. The fixture is a locally built, permission-free APK with no code. It has its own package ID. Use a development key shared by this test APK and the **emulator's** launcher candidate. Set `ZP_KEYSTORE_PASS` using the build instructions and build with Python 3.
+Use a disposable Android TV emulator. The runner checks both the explicit emulator serial and the device's emulator property. Its tests build a small permission-free APK with a framework TV activity and a companion instrumentation APK. Both use the same development key as the emulator's ZeroPulse launcher. The production signing key is unnecessary.
+
+Build the companion from the repository root using Python 3 and the SDK/JDK used for the development launcher. Set `ZP_KEYSTORE_PASS` for the development key as described in the build guide.
 
 ```sh
 python qa/device/downloads/build.py --sdk "$ANDROID_SDK_ROOT" --jdk "$JAVA_HOME" --build-tools 36.0.0 --keystore "$DEV_KEY" --output "$TMPDIR/zp-download-qa.apk"
-```
-
-Select an explicit disposable emulator serial. Check that `adb -s "$EMU" shell getprop ro.kernel.qemu` returns `1`. After installing the matching development launcher on that emulator, install this instrumentation APK and grant access to the two test documents.
-
-```sh
+adb -s "$EMU" shell getprop ro.kernel.qemu   # must return 1
 adb -s "$EMU" install -r "$TMPDIR/zp-download-qa.apk"
-adb -s "$EMU" shell content call --uri content://tv.calmhome.downloadqa.samples --method grant
-adb -s "$EMU" shell am instrument -w -e phase verify tv.calmhome.downloadqa/.DownloadRunner
+python qa/device/downloads/emulator.py --serial "$EMU" --evidence "$TMPDIR/ZeroPulse-emulator-evidence"
 ```
 
-The verify phase checks actual JobScheduler transfers, malformed content, a supplied checksum mismatch, cancellation, retry and PackageManager inspection. Each phase must print `result=PASS`; a successful adb process exit alone is insufficient.
+The run assumes the matching development launcher is already installed. It prepares only the fixture's dock entry, exercises D-pad category selection and Back focus restoration, and captures Home and Download Center. It submits real JobScheduler transfers for a malformed document, a checksum mismatch, cancellation and retry. Its direct HTTPS case transfers the project's known v2.1 public APK through the developer's redirect, checks the published size and SHA-256, and verifies that Download Center rejects replacing the active HOME launcher. It also verifies a completed record survives an emulator reboot.
 
-To test persistence, run `phase seed`, record the returned `downloadId`, reboot the emulator, and run `phase resume -e id NUMBER`. The latter reads the prior row and removes only that test download. If testing reboot during transfer, capture the queue and resulting terminal state separately.
+For installer tests, instrumentation seeds an inspected fixture and exits. The host then operates **Manage Downloads → download details → Install with Android approval** through the visible launcher UI. It locates ZeroPulse's source-permission switch in Android TV settings. It chooses Cancel and Install in separate real system confirmation dialogs and captures the results. The allow case activates **Add to dock** and **Open app** in download details. It checks the fixture's actual foreground activity. A subsequent assertion opens the persisted history, verifies Android's callback result, checks the stored dock package, and removes only the test row. The installed fixture and favorite remain available for launcher smoke tests.
 
-For system installer callback acceptance, allow ZeroPulse to request installs via Android settings on the emulator. Run `phase install-deny` and choose Cancel with the remote, then run `phase install-allow` and approve Android's dialog. Each phase waits up to three minutes for the real status callback. The allow phase checks package presence. A framework Activity gives the fixture a launchable TV entry point. If necessary, use Continue approval in the download detail screen to reopen Android's consent UI. The signed fixture stays installed only on this disposable emulator.
-
-Run `python qa/device/downloads/emulator.py --serial "$EMU" --evidence "$TMPDIR/ZeroPulse-emulator-evidence"` to perform these phases with real system UI actions. The runner checks the emulator serial and hardware property, captures Home and Download Center screenshots, and verifies D-pad focus restoration.
-
-Run the `content call` again before new test sessions if persisted grants were released by cleanup. Every phase is opt-in. Live TCL acceptance uses a separately reviewed candidate and its own installation approval.
+The output directory contains screenshots, native view hierarchies, per-phase text results and emulator diagnostics. Check the aggregated outcomes as well as `result=PASS` in individual instrumentation logs. The feature-branch CI workflow uploads emulator evidence separately from physical-TV evidence.

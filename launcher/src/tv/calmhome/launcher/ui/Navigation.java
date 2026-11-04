@@ -12,6 +12,7 @@ import tv.calmhome.launcher.screens.Panel;
 public final class Navigation extends LinearLayout {
     private final View assistant;
     private final TextClock clock;
+    private View current;
 
     public Navigation(Panel.Host host, String selected) {
         super(host.context());
@@ -32,6 +33,10 @@ public final class Navigation extends LinearLayout {
         for (int i = 0; i < labels.length; i++) {
             String tab = labels[i];
             TextView item = host.widgets().navItem(tab, tab.equals(selected), v -> host.navigate(tab));
+            if (tab.equals(selected)) {
+                current = item;
+                item.setFocusableInTouchMode(true);
+            }
             if (t.screenW() - 2 * t.safeX() >= t.dp(780)) {
                 Glyph icon = new Glyph(icons[i], Theme.SOFT_WHITE);
                 icon.setBounds(0, 0, t.dp(15), t.dp(15));
@@ -57,4 +62,6 @@ public final class Navigation extends LinearLayout {
         assistant.setVisibility(host.prefs().assistantEnabled() ? VISIBLE : GONE);
         clock.setVisibility(host.prefs().showClock() ? VISIBLE : GONE);
     }
+
+    public void focusCurrent() { if (current != null) current.requestFocus(); }
 }

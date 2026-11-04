@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const serial = process.argv[2];
-const displayTest = process.argv[4] === '--emulator-display';
-if (!serial || process.argv.length > 5 || (process.argv[4] && !displayTest)) {
-  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-display]');
+const mode = process.argv[4];
+if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k'].includes(mode))) {
+  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k]');
   process.exit(2);
 }
 const pkg = 'tv.calmhome.launcher';
@@ -113,46 +113,46 @@ async function emulatorDisplayTest() {
   assert.equal(shell('getprop', 'ro.kernel.qemu').trim(), '1', 'Display overrides require a disposable emulator');
   const size = shell('wm', 'size');
   const density = shell('wm', 'density');
+  const native4k = mode === '--emulator-4k';
+  if (native4k) assert.match(size, /Physical size: 3840x2160/, 'Boot an AVD with a native 3840x2160 framebuffer');
   const originalSize = size.match(/Override size: (\d+x\d+)/)?.[1] || 'reset';
   const originalDensity = density.match(/Override density: (\d+)/)?.[1] || 'reset';
   const motion = shell('settings', 'get', 'global', 'animator_duration_scale').trim();
   save('display-before.txt', size + density + 'animator_duration_scale=' + motion + '\n');
   try {
-    shell('wm', 'size', '3840x2160');
-    shell('wm', 'density', '640'); // 1080p/320 and 2160p/640 have the same logical TV canvas.
+    if (native4k) {
+      // Some TV images boot a 4K framebuffer with a separate 1080p logical override.
+      shell('wm', 'size', '3840x2160');
+      shell('wm', 'density', '640');
+    }
     shell('settings', 'put', 'global', 'animator_duration_scale', '0');
     assert.equal(shell('settings','get','global','animator_duration_scale').trim(), '0');
     await pause(750);
     await open('Downloads');
     await focus('Live Sports, browse sources');
-    capture('13-4k-reduced-motion', 'Download Center');
+    capture(native4k ? '13-4k-reduced-motion' : '13-fhd-reduced-motion', 'Download Center');
     const png = adb('exec-out', 'screencap', '-p');
-    assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [3840, 2160], 'Expected true 4K raster');
+    const dimensions = [png.readUInt32BE(16), png.readUInt32BE(20)];
+    assert.deepEqual(dimensions, native4k ? [3840,2160] : [1920,1080], 'Output must match the requested raster');
+    if (native4k) assert.equal(tree().nodes[0].bounds, '[0,0][3840,2160]', 'App must actually render at native size');
     await key('DPAD_RIGHT');
     assert.equal(tree().focused?.label, 'Movies & TV, browse sources', 'Reduced-motion D-pad movement');
-    capture('14-4k-movies-focus', 'Download Center');
+    capture(native4k ? '14-4k-movies-focus' : '14-fhd-movies-focus', 'Download Center');
     await open('Home');
   } finally {
     if (motion === 'null') shell('settings', 'delete', 'global', 'animator_duration_scale');
     else shell('settings', 'put', 'global', 'animator_duration_scale', motion);
-    shell('wm', 'density', originalDensity);
-    shell('wm', 'size', originalSize);
+    if (native4k) {
+      shell('wm', 'density', originalDensity);
+      shell('wm', 'size', originalSize);
+    }
     assert.equal(shell('wm','size'), size, 'Original display size was not restored');
     assert.equal(shell('wm','density'), density, 'Original display density was not restored');
     assert.equal(shell('settings','get','global','animator_duration_scale').trim(), motion, 'Animator scale was not restored');
   }
 }
 
-const home = () => shell('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME').trim();
-const beforeHome = home();
-try {
-  save('package.txt', version.split('\n').filter(line => /version(Code|Name)=/.test(line)).join('\n'));
-  const launch = shell('am', 'start', '-W', '-n', pkg + '/.MainActivity');
-  assert.match(launch, /Status: ok/);
-  save('startup.txt', launch);
-  await pause(650);
-  // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
-  if (!tree().focused) await key('DPAD_DOWN');
+async function fullNavigation() {
   capture('01-home', 'All Apps');
   await open('Downloads');
   await focus('Live Sports, browse sources');
@@ -191,7 +191,20 @@ try {
   } else console.log('SKIP Assistant: disabled in owner settings');
   await open('Home');
   capture('12-home-return', 'Downloads');
-  if (displayTest) await emulatorDisplayTest();
+}
+
+const home = () => shell('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME').trim();
+const beforeHome = home();
+try {
+  save('package.txt', version.split('\n').filter(line => /version(Code|Name)=/.test(line)).join('\n'));
+  const launch = shell('am', 'start', '-W', '-n', pkg + '/.MainActivity');
+  assert.match(launch, /Status: ok/);
+  save('startup.txt', launch);
+  await pause(650);
+  // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
+  if (!tree().focused) await key('DPAD_DOWN');
+  if (mode) await emulatorDisplayTest();
+  else await fullNavigation();
   console.log('PASS default HOME membership', home() === beforeHome);
   assert.equal(home(), beforeHome, 'Default HOME changed during test');
 } catch (error) {

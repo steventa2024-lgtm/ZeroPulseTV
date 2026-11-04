@@ -67,12 +67,20 @@ jobs:
           test "$(adb -s "$EMU" shell getprop sys.boot_completed | tr -d '\r')" = 1
           test "$(adb -s "$EMU" shell getprop ro.kernel.qemu | tr -d '\r')" = 1
           adb -s "$EMU" shell wm dismiss-keyguard
-      - name: Test TV navigation, transfer, reboot recovery and Android install callbacks
+      - name: Install test packages through Android
+        id: install-fixtures
         run: |
-          adb -s "$EMU" install "$RUNNER_TEMP/launcher.apk"
-          adb -s "$EMU" install "$RUNNER_TEMP/fixture-qa.apk"
-          python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence"
+          for apk in launcher fixture-qa; do
+            if ! timeout 120 adb -s "$EMU" install "$RUNNER_TEMP/$apk.apk"; then
+              adb -s "$EMU" exec-out screencap -p > "$RUNNER_TEMP/emulator-evidence/install-$apk.png"
+              adb -s "$EMU" shell dumpsys activity activities > "$RUNNER_TEMP/emulator-evidence/install-$apk-activities.txt"
+              exit 1
+            fi
+          done
+      - name: Test TV navigation, transfer, reboot recovery and Android install callbacks
+        run: python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence"
       - name: Reboot during a partially transferred APK
+        if: ${{ !cancelled() && steps.install-fixtures.outcome == 'success' }}
         run: |
           python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence/inflight" --inflight-only
       - uses: actions/upload-artifact@v4

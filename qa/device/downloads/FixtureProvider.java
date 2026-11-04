@@ -60,6 +60,7 @@ public class FixtureProvider extends ContentProvider {
         }
         if ("probe".equals(method)) {
             Bundle result = new Bundle();
+            result.putLong("fixtureBytes", file(VALID).length());
             result.putInt("armed", state.getInt("armed", -1));
             result.putInt("boot", bootCount());
             result.putInt("reopened", state.getInt("reopened", -1));

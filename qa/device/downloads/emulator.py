@@ -37,8 +37,8 @@ class Emulator:
         raise RuntimeError("Android did not produce a UI hierarchy")
 
     def capture(self, label, tree=None):
-        (self.out / (label + ".png")).write_bytes(subprocess.check_output(self.adb + ["exec-out", "screencap", "-p"]))
         t = self.tree() if tree is None else tree
+        (self.out / (label + ".png")).write_bytes(subprocess.check_output(self.adb + ["exec-out", "screencap", "-p"]))
         (self.out / (label + ".xml")).write_bytes(ET.tostring(t, encoding="utf-8"))
         return t
 
@@ -260,6 +260,14 @@ class Emulator:
         else:
             self.capture("inflight-missing-checkpoint")
             raise RuntimeError("Download details did not display the partial 1,024-byte transfer")
+        probe = self.shell("content", "call", "--uri", "content://tv.calmhome.downloadqa.samples", "--method", "probe")
+        fixture_bytes = int(re.search(r"fixtureBytes=(\d+)", probe)[1])
+        self.shell("am", "start", "-W", "-n", "tv.calmhome.launcher/.MainActivity", "--es", "zp_open", "downloads")
+        queue = self.capture("inflight-active-center")
+        expected = str(1024 * 100 // fixture_bytes) + "%"
+        labels = [node.get("text", "") for node in queue.iter("node")]
+        if expected not in labels or "1" not in labels or "Cancel" not in labels or "Downloading" not in labels:
+            raise RuntimeError("Active Downloads did not show the gated transfer count, percentage and cancel action")
         self.job_diagnostics("inflight-before")
         # Android 14 batches persisted URI grants on a ten-second timer. Leave time for
         # both that write and JobStore while the fixture remains blocked at 1,024 bytes.

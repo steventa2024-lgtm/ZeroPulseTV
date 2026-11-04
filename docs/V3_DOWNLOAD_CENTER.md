@@ -1,5 +1,7 @@
 # Using the private v3 Download Center
 
+This describes the previous three-category build. For the current six-card interface, see [Graphite Download Center](GRAPHITE_V3_APK_DOWNLOADER.md).
+
 Open Downloads from the top navigation or the Home shortcut. Select Live Sports, Movies & TV or Anime to see the links saved on this TV. Each category starts empty. **Add a trusted source** saves a name, the exact developer HTTPS URL, an optional local numeric shortcut and an optional separately obtained publisher SHA-256. Select a saved source to see its hostname, start a download or remove it. **Choose an APK file** opens Android’s document picker, including available USB storage. The TV needs a file picker for local imports.
 
 **Go** accepts a direct HTTPS URL or a local numeric shortcut, retaining leading zeros. An unmapped code offers to copy it and open the installed AFTVnews Downloader app. Enter the code there. ZeroPulse makes no request to a third-party code resolver. [AFTVnews Downloader](https://www.aftvnews.com/downloader/)

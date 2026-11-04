@@ -7,8 +7,8 @@ import path from 'node:path';
 
 const serial = process.argv[2];
 const mode = process.argv[4];
-if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k','--published-release'].includes(mode))) {
-  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k|--published-release]');
+if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k','--published-release','--installed-library'].includes(mode))) {
+  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k|--published-release|--installed-library]');
   process.exit(2);
 }
 const pkg = 'tv.calmhome.launcher';
@@ -204,6 +204,36 @@ async function fullNavigation() {
   capture('12-home-return', 'Downloads');
 }
 
+// Exercise public PackageManager data and the launcher's own recent history with a real installed app.
+async function installedLibrary() {
+  await open('Apps');
+  await open('Favorites');
+  assert.ok(tree().nodes.some(n => n.text === 'Favorites' && n.selected === 'true'), 'Favorites filter not selected');
+  await open('Games');
+  assert.ok(tree().nodes.some(n => n.text === 'Games' && n.selected === 'true'), 'Game filter not selected');
+  await open('All');
+  await focus('Search installed apps');
+  shell('input', 'text', 'no-such-zp-app-731');
+  assert.ok(tree().nodes.some(n => n.text === 'No installed apps match this view.'), 'Search failed to filter installed apps');
+  if (/mInputShown=true/.test(shell('dumpsys','input_method'))) await key('BACK');
+  shell('am','start','-W','-n',pkg+'/.MainActivity','--es','zp_open','apps');
+  await pause(650);
+  // Only launch the known YouTube TV package when that installed entry exists.
+  if (shell('pm','path','com.google.android.youtube.tv').includes('package:')) {
+    const card = tree().nodes.find(n => n.clickable === 'true' && /^YouTube(?:, in dock)?$/.test(n.label));
+    if (!card) throw Error('Installed YouTube app missing from grid');
+    await open(card.label);
+    await pause(800);
+    assert.match(shell('dumpsys','activity','activities'), /(?:mResumedActivity|topResumedActivity)[^\n]*com\.google\.android\.youtube\.tv\//);
+    shell('am','start','-W','-n',pkg+'/.MainActivity','--es','zp_open','home');
+    await pause(600);
+    assert.ok(tree().nodes.some(n => n.class === 'android.widget.TextView' && n.label === 'YouTube' && n.clickable === 'true'),
+      'Real launch was not added to the recent shelf');
+    capture('library-recent-home', 'Recently opened');
+  } else console.log('SKIP YouTube launch: package not installed on this target');
+  console.log('PASS installed app filters, empty search and recent shelf');
+}
+
 // Download the owner's immutable published APK via the ordinary remote UI. It must never replace HOME.
 async function publishedRelease() {
   const url = 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk';
@@ -251,7 +281,8 @@ try {
   await pause(650);
   // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
   if (!tree().focused) await key('DPAD_DOWN');
-  if (mode === '--published-release') await publishedRelease();
+  if (mode === '--installed-library') await installedLibrary();
+  else if (mode === '--published-release') await publishedRelease();
   else if (mode) await emulatorDisplayTest();
   else await fullNavigation();
   console.log('PASS default HOME membership', home() === beforeHome);

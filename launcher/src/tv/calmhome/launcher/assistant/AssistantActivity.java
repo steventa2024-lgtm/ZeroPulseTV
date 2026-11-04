@@ -52,7 +52,7 @@ import tv.calmhome.launcher.ui.Widgets;
 public class AssistantActivity extends Activity implements JarvisSession.Listener {
 
     private AssistantVoice voice;
-    private TextView mic, voiceStatus, speakToggle, silence, stopReply, send;
+    private TextView mic, voiceStatus, speakToggle, silence, previewVoice, stopReply, send;
     private ChatHistory history;
     private SharedPreferences localChat;
     private boolean responding, visible, pairingNewPc;
@@ -268,11 +268,11 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
 
         LinearLayout conn = vertical();
         actions = vertical();
-        conn.addView(actions);
         pcRow = connRow(conn, Glyph.Kind.INPUTS, "PC pairing");
         linkRow = connRow(conn, Glyph.Kind.ASSISTANT, "PC gateway");
         providerRow = connRow(conn, Glyph.Kind.ASSISTANT, "Claude Code on PC");
         setRow(providerRow, "Requires PC link", Theme.MUTED_GRAY);
+        conn.addView(actions);
         keyRow = connRow(conn, Glyph.Kind.INFO, "Device key");
         Row local = connRow(conn, Glyph.Kind.TV, "Local TV commands");
         setRow(local, "Available", Theme.SOFT_WHITE);
@@ -328,6 +328,8 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         audio.addView(voiceStatus, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f));
         speakToggle = button("", () -> voice.setSpeakEnabled(!voice.speakEnabled()));
         audio.addView(speakToggle, w.wrap());
+        previewVoice = button("Preview voice", voice::preview);
+        audio.addView(previewVoice, w.wrap());
         silence = button("Stop speaking", voice::stopSpeaking);
         audio.addView(silence, w.wrap());
         compose.addView(audio, spaced(4));
@@ -383,6 +385,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         if (voice.hasRecognizer() && !status.contains("online")) status += " Recognition may use an online service.";
         voiceStatus.setText(status);
         speakToggle.setText(voice.speakEnabled() ? "Speak replies on" : "Speak replies off");
+        enable(previewVoice, voice.speakEnabled());
         enable(silence, voice.speaking());
     }
 
@@ -530,6 +533,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     }
 
     private void notPaired() {
+        pairingNewPc = false;
         chip("JARVIS not connected", Theme.MUTED_GRAY);
         setRow(pcRow, "Not paired", Theme.MUTED_GRAY);
         setRow(linkRow, "Off", Theme.MUTED_GRAY);

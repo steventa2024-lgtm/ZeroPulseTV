@@ -24,6 +24,11 @@ public final class DownloadRecord {
 
     public boolean inActiveQueue() { return transferActive() || state == State.AWAITING_APPROVAL; }
 
+    public String displayName() {
+        if (appName != null && !appName.isEmpty()) return appName;
+        return fileName == null || fileName.isEmpty() ? "APK download" : fileName;
+    }
+
     /** -1 means the source did not advertise a usable size. */
     public int percentTransferred() {
         if (total <= 0 || bytes < 0) return -1;

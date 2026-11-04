@@ -105,12 +105,14 @@ public final class DownloadsPanel extends DownloadPage {
         card.addView(icon(symbol), new LinearLayout.LayoutParams(t.dp(25), t.dp(25)));
         TextView label = text(name, Theme.T_NAV, true);
         label.setSingleLine();
+        label.setGravity(Gravity.CENTER);
+        label.setPadding(t.dp(4), t.dp(3), t.dp(4), 0);
         card.addView(label);
         card.setContentDescription(name + ", browse sources");
         w.focusable(card, Theme.R_PANEL, null, true);
         card.setFocusableInTouchMode(true);
         card.setOnClickListener(v -> open.run());
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, t.dp(62), 1);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, t.dp(71), 1);
         if (row.getChildCount() > 0) lp.leftMargin = t.dp(7);
         row.addView(card, lp);
         if (first == null) first = card;
@@ -176,7 +178,7 @@ public final class DownloadsPanel extends DownloadPage {
             tile.setOnClickListener(v -> {
                 if (!host.apps().launch(pkg)) { host.toast("This app is no longer available."); refreshShelf(); }
             });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileWidth, t.dp(40));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileWidth, t.dp(43));
             lp.rightMargin = t.dp(7);
             shelf.addView(tile, lp);
         }
@@ -187,7 +189,7 @@ public final class DownloadsPanel extends DownloadPage {
         plus.setContentDescription("All installed apps");
         w.focusable(plus, 10, null, true);
         plus.setOnClickListener(v -> host.navigate("Apps"));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(t.dp(43), t.dp(40));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(t.dp(43), t.dp(43));
         if (packages.isEmpty()) lp.leftMargin = t.dp(12);
         shelf.addView(plus, lp);
         if (restore != null) {

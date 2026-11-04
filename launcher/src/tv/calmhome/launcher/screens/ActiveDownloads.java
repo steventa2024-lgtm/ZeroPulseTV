@@ -27,7 +27,8 @@ final class ActiveDownloads {
     private final Downloads downloads;
     final LinearLayout view;
     private final LinearLayout rows;
-    private final TextView count, empty, manage;
+    private final TextView count, manage;
+    private final LinearLayout empty;
     private final Map<Long, Row> shown = new LinkedHashMap<>();
     private final ExecutorService icons = Executors.newSingleThreadExecutor();
     private boolean closed;
@@ -69,10 +70,23 @@ final class ActiveDownloads {
         view.addView(header);
         rows = new LinearLayout(page.c);
         rows.setOrientation(LinearLayout.VERTICAL);
+        rows.setMinimumHeight(page.t.dp(57));
+        rows.setGravity(Gravity.CENTER_VERTICAL);
         view.addView(rows);
-        empty = page.text("No active downloads. Enter a developer link or browse your saved sources.", Theme.T_LABEL, false);
+        empty = new LinearLayout(page.c);
         empty.setGravity(Gravity.CENTER_VERTICAL);
-        empty.setPadding(page.t.dp(5), page.t.dp(6), 0, page.t.dp(7));
+        empty.setPadding(page.t.dp(7), page.t.dp(5), 0, page.t.dp(5));
+        ImageView file = new ImageView(page.c);
+        file.setBackground(page.t.glass(9, .66f));
+        file.setImageDrawable(new Glyph(Glyph.Kind.APK, Theme.MUTED_GRAY));
+        file.setPadding(page.t.dp(5), page.t.dp(5), page.t.dp(5), page.t.dp(5));
+        empty.addView(file, new LinearLayout.LayoutParams(page.t.dp(31), page.t.dp(31)));
+        LinearLayout copy = new LinearLayout(page.c);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.setPadding(page.t.dp(9), 0, 0, 0);
+        copy.addView(page.text("No active downloads", Theme.T_NAV, true));
+        copy.addView(page.text("Enter a developer link or browse your saved sources.", Theme.T_LABEL, false));
+        empty.addView(copy);
         refresh();
     }
 
@@ -167,13 +181,14 @@ final class ActiveDownloads {
         }
 
         void update(DownloadRecord r) {
-            String label = r.appName != null && !r.appName.isEmpty() ? r.appName : r.fileName;
-            DownloadPage.updateText(title, label == null ? "APK download" : label);
+            DownloadPage.updateText(title, r.displayName());
             DownloadPage.updateText(status, DownloadLibraryPanel.label(r.state));
             int value = r.percentTransferred();
             bar.setVisibility(value >= 0 ? View.VISIBLE : View.INVISIBLE);
             if (value >= 0 && bar.getProgress() != value) bar.setProgress(value);
             DownloadPage.updateText(percent, value >= 0 ? value + "%" : Formatter.formatFileSize(page.c, r.bytes));
+            String description = title.getText() + ", " + status.getText() + ", " + percent.getText();
+            if (!TextUtils.equals(info.getContentDescription(), description)) info.setContentDescription(description);
             if (r.state == DownloadRecord.State.AWAITING_APPROVAL && cancel.hasFocus()) info.requestFocus();
             cancel.setVisibility(r.state == DownloadRecord.State.AWAITING_APPROVAL ? View.GONE : View.VISIBLE);
             String pkg = r.packageName;

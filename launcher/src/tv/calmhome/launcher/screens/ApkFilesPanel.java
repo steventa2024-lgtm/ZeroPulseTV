@@ -31,8 +31,7 @@ final class ApkFilesPanel extends DownloadPage {
         for (DownloadRecord r : downloads.list()) {
             if (!downloads.hasFile(r)) continue;
             if (install && r.state != DownloadRecord.State.COMPLETED && r.state != DownloadRecord.State.AWAITING_APPROVAL) continue;
-            String name = r.appName == null || r.appName.isEmpty() ? r.fileName : r.appName;
-            View row = action(name + "   ·   " + Formatter.formatFileSize(c, r.bytes) + "   ·   " + DownloadLibraryPanel.label(r.state),
+            View row = action(r.displayName() + "   ·   " + Formatter.formatFileSize(c, r.bytes) + "   ·   " + DownloadLibraryPanel.label(r.state),
                     () -> { selectedId = r.id; host.open(DownloadsPanel.detail(host, r.id)); });
             files.addView(row, spaced(4));
             if (r.id == selectedId || first == pick) first = row;

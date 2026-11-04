@@ -63,9 +63,9 @@ public final class Navigation extends LinearLayout {
         clockBox.setOrientation(VERTICAL); clockBox.setGravity(Gravity.CENTER);
         clockBox.setBackground(t.glass(Theme.R_PILL, .84f));
         TextClock time = new TextClock(c); time.setFormat12Hour("h:mm a"); time.setFormat24Hour("HH:mm");
-        t.style(time, 15, Theme.SOFT_WHITE, Theme.FONT_MEDIUM); clockBox.addView(time);
+        t.style(time, 15, Theme.SOFT_WHITE, Theme.FONT_MEDIUM); time.setGravity(Gravity.CENTER); clockBox.addView(time);
         date = new TextClock(c); date.setFormat12Hour("EEE, MMM d"); date.setFormat24Hour("EEE, MMM d");
-        t.style(date, 9, Theme.MUTED_GRAY, Theme.FONT_REGULAR); clockBox.addView(date);
+        t.style(date, 9, Theme.MUTED_GRAY, Theme.FONT_REGULAR); date.setGravity(Gravity.CENTER); clockBox.addView(date);
         LayoutParams box = new LayoutParams(t.dp(85),t.dp(39)); box.leftMargin=t.dp(12); addView(clockBox,box);
         update(prefs);
     }

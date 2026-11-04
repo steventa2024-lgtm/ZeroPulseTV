@@ -65,6 +65,9 @@ public final class DownloadTests {
         } finally { Files.deleteIfExists(local.toPath()); }
 
         DownloadRecord r = new DownloadRecord();
+        check("APK download".equals(r.displayName()));
+        r.fileName = "developer.apk"; check("developer.apk".equals(r.displayName()));
+        r.appName = "Parsed APK"; check("Parsed APK".equals(r.displayName()));
         r.total = -1; r.bytes = 1024; check(r.percentTransferred() == -1);
         r.total = 0; check(r.percentTransferred() == -1);
         r.total = 4096; check(r.percentTransferred() == 25);

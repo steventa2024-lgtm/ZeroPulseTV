@@ -67,7 +67,7 @@ final class DownloadDetailPanel extends DownloadPage {
         boolean installed = downloads.isInstalled(id);
         boolean launchable = installed && host.apps().usable(r.packageName);
         boolean inDock = launchable && host.prefs().dock().contains(r.packageName);
-        updateText(summary, present(r.appName, present(r.fileName, "APK download")));
+        updateText(summary, r.displayName());
         updateText(progressText, DownloadLibraryPanel.label(r.state) + "    ·    " + Formatter.formatFileSize(c, r.bytes)
                 + (r.total > 0 ? " of " + Formatter.formatFileSize(c, r.total) : " transferred"));
         bar.setVisibility(r.state == DownloadRecord.State.DOWNLOADING ? View.VISIBLE : View.GONE);

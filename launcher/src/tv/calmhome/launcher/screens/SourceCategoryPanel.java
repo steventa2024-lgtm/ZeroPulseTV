@@ -44,7 +44,7 @@ final class SourceCategoryPanel extends DownloadPage {
         for (DownloadRecord file : Downloads.get(c).list()) {
             if (!catalog.containsFile(file.id, category)) continue;
             String tag = "file:" + file.id;
-            View row = action(file.fileName + "   ·   " + DownloadLibraryPanel.label(file.state), () -> {
+            View row = action(file.displayName() + "   ·   " + DownloadLibraryPanel.label(file.state), () -> {
                 returnUrl = tag;
                 host.open(DownloadsPanel.detail(host, file.id));
             });

@@ -43,7 +43,7 @@ public class PulseLogo extends View {
             p.setStrokeJoin(Paint.Join.ROUND);
         }
         line.setColor(Theme.PULSE_CYAN);
-        glow.setColor(Theme.withAlpha(Theme.PULSE_CYAN, 0.28f));
+        glow.setColor(Theme.withAlpha(Theme.PULSE_CYAN, 0.16f));
         applySize();
     }
 
@@ -75,7 +75,7 @@ public class PulseLogo extends View {
         word.setLetterSpacing(0.01f);
         suffixPaint.setLetterSpacing(0.04f);
         line.setStrokeWidth(Math.max(1.5f, heightPx * 0.075f));
-        glow.setStrokeWidth(Math.max(3f, heightPx * 0.24f));
+        glow.setStrokeWidth(Math.max(3f, heightPx * 0.16f));
         requestLayout();
         invalidate();
     }

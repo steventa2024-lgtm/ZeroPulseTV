@@ -54,7 +54,7 @@ final class DownloadLibraryPanel extends DownloadPage {
                 rows.put(r.id, row);
                 list.addView(row, spaced(4));
             }
-            updateText(row, r.fileName + "   ·   " + label(r.state) + "   ·   " + Formatter.formatFileSize(c, r.bytes) + "    ›");
+            updateText(row, r.displayName() + "   ·   " + label(r.state) + "   ·   " + Formatter.formatFileSize(c, r.bytes) + "    ›");
         }
         for (Long id : new java.util.ArrayList<>(rows.keySet())) {
             if (!ids.contains(id)) list.removeView(rows.remove(id));

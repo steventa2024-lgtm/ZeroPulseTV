@@ -129,8 +129,8 @@ public final class Theme {
 
     /** Pearl reflection, neutral graphite body and a thin silver rim. */
     public GradientDrawable glass(float radiusDp, float opacity) {
-        return new GlassSurface(new int[]{withAlpha(0xFF747980, opacity), withAlpha(0xFF40464D, opacity),
-                withAlpha(0xFF282C32, opacity), withAlpha(0xFF42464C, opacity)}, dp(radiusDp), Math.max(1, dp(1)));
+        return new GlassSurface(new int[]{withAlpha(0xFF71767D, opacity), withAlpha(0xFF40464D, opacity * .80f),
+                withAlpha(0xFF282C32, opacity * .90f), withAlpha(0xFF42464C, opacity)}, dp(radiusDp), Math.max(1, dp(1)));
     }
 
     public GradientDrawable raised(float radiusDp, boolean focused) {

@@ -159,4 +159,14 @@ public class AssistantVoiceTest {
         assertFalse(control.speaking());
         assertTrue(control.status().contains("Audio focus"));
     }
+    @Test public void previewUsesTheRealSpeechQueueOnlyWhenEnabled() {
+        control.preview();
+        assertFalse(control.speaking());
+        TextToSpeech engine = enableSpeech();
+        control.preview();
+        assertEquals("This is a local ZeroPulse voice preview.", shadowOf(engine).getLastSpokenText());
+        assertTrue(drafts.isEmpty());
+        control.stopSpeaking();
+        assertFalse(control.speaking());
+    }
 }

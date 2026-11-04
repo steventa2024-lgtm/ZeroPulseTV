@@ -47,8 +47,11 @@ public final class GraphiteBackdrop extends Drawable {
 
     private static void edge(Canvas c, Path path, Paint p) {
         p.setShader(null); p.setStyle(Paint.Style.STROKE);
-        p.setColor(0x173f444c); p.setStrokeWidth(7); c.drawPath(path, p);
-        p.setColor(0x8bdddfe3); p.setStrokeWidth(1); c.drawPath(path, p);
+        p.setColor(0x0ee2e5e9); p.setStrokeWidth(10); c.drawPath(path, p);
+        p.setColor(0x20e2e5e9); p.setStrokeWidth(4); c.drawPath(path, p);
+        p.setShader(new LinearGradient(0, 0, 940, 540, new int[]{0xb8eeeef1, 0x37d1d4db, 0xa6e5e6e9},
+                null, Shader.TileMode.CLAMP));
+        p.setStrokeWidth(1); c.drawPath(path, p); p.setShader(null);
         p.setStyle(Paint.Style.FILL); p.setColor(0xffffffff);
     }
 

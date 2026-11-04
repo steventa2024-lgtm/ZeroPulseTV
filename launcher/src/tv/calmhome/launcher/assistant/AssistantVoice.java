@@ -41,7 +41,7 @@ final class AssistantVoice {
             .setUsage(AudioAttributes.USAGE_ASSISTANT).build();
     private AudioFocusRequest focus;
     private TextToSpeech engine;
-    private boolean foreground, closed, hasRecognizer, hasEngine, waiting, canceled, initialized;
+    private boolean foreground, closed, hasRecognizer, hasEngine, waiting, canceled, initialized, previewing;
     private String note = "", pendingReply, lastUtterance;
     private int session, utterance;
 
@@ -157,9 +157,16 @@ final class AssistantVoice {
     }
 
     void speakReply(String text) {
+        playText(text, false);
+    }
+    void preview() {
+        playText("This is a local ZeroPulse voice preview.", true);
+    }
+    private void playText(String text, boolean preview) {
         if (closed || !foreground || waiting || !speakEnabled() || text == null || text.trim().isEmpty()) return;
         if (!hasEngine) { report("Speech engine unavailable. The reply is shown as text."); return; }
         silence();
+        previewing = preview;
         pendingReply = text;
         if (initialized) playPending(); else ensureEngine();
     }
@@ -185,7 +192,7 @@ final class AssistantVoice {
             @Override public void onStart(String id) {
                 main.post(() -> {
                     if (!closed && lastUtterance != null && id != null && id.startsWith(utterance + "-"))
-                        report("Speaking reply.");
+                        report(previewing ? "Playing local voice preview." : "Speaking reply.");
                 });
             }
             @Override public void onDone(String id) { main.post(() -> finished(id, false)); }
@@ -228,7 +235,7 @@ final class AssistantVoice {
                 return;
             }
         }
-        report("Reply queued for speech.");
+        report(previewing ? "Local voice preview queued." : "Reply queued for speech.");
     }
 
     private void finished(String id, boolean failed) {
@@ -239,7 +246,7 @@ final class AssistantVoice {
         } else if (id.equals(lastUtterance)) {
             lastUtterance = null;
             releaseFocus();
-            report("Spoken reply finished.");
+            report(previewing ? "Local voice preview finished." : "Spoken reply finished.");
         }
     }
 

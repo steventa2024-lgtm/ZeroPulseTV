@@ -41,6 +41,10 @@ abstract class DownloadPage extends Panel {
         v.setText(value);
         return v;
     }
+
+    static void updateText(TextView view, String value) {
+        if (!android.text.TextUtils.equals(view.getText(), value)) view.setText(value);
+    }
     LinearLayout column() {
         LinearLayout col = new LinearLayout(c);
         col.setOrientation(LinearLayout.VERTICAL);

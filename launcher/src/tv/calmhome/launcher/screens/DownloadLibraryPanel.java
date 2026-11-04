@@ -44,7 +44,7 @@ final class DownloadLibraryPanel extends DownloadPage {
     }
     private void refresh() {
         List<DownloadRecord> history = downloads.list();
-        if (empty.getParent() == list) list.removeView(empty);
+        if (!history.isEmpty() && empty.getParent() == list) list.removeView(empty);
         java.util.HashSet<Long> ids = new java.util.HashSet<>();
         for (DownloadRecord r : history) {
             ids.add(r.id);
@@ -54,12 +54,12 @@ final class DownloadLibraryPanel extends DownloadPage {
                 rows.put(r.id, row);
                 list.addView(row, spaced(4));
             }
-            row.setText(r.fileName + "   ·   " + label(r.state) + "   ·   " + Formatter.formatFileSize(c, r.bytes) + "    ›");
+            updateText(row, r.fileName + "   ·   " + label(r.state) + "   ·   " + Formatter.formatFileSize(c, r.bytes) + "    ›");
         }
         for (Long id : new java.util.ArrayList<>(rows.keySet())) {
             if (!ids.contains(id)) list.removeView(rows.remove(id));
         }
-        if (history.isEmpty()) list.addView(empty);
+        if (history.isEmpty() && empty.getParent() == null) list.addView(empty);
         first = history.isEmpty() ? body.getChildAt(1) : rows.get(history.get(0).id);
     }
     private final Runnable tick = new Runnable() {

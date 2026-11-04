@@ -67,8 +67,8 @@ final class DownloadDetailPanel extends DownloadPage {
         boolean installed = downloads.isInstalled(id);
         boolean launchable = installed && host.apps().usable(r.packageName);
         boolean inDock = launchable && host.prefs().dock().contains(r.packageName);
-        summary.setText(present(r.appName, present(r.fileName, "APK download")));
-        progressText.setText(DownloadLibraryPanel.label(r.state) + "    ·    " + Formatter.formatFileSize(c, r.bytes)
+        updateText(summary, present(r.appName, present(r.fileName, "APK download")));
+        updateText(progressText, DownloadLibraryPanel.label(r.state) + "    ·    " + Formatter.formatFileSize(c, r.bytes)
                 + (r.total > 0 ? " of " + Formatter.formatFileSize(c, r.total) : " transferred"));
         bar.setVisibility(r.state == DownloadRecord.State.DOWNLOADING ? View.VISIBLE : View.GONE);
         bar.setIndeterminate(r.total <= 0);
@@ -92,7 +92,7 @@ final class DownloadDetailPanel extends DownloadPage {
         }
         if (r.state == DownloadRecord.State.INSTALLED && !installed)
             line(facts, "Current installation", "Package or installed version is no longer present.");
-        metadata.setText(facts.toString());
+        updateText(metadata, facts.toString());
         String key = r.state + "/" + launchable + "/" + inDock;
         if (key.equals(controlState)) return;
         controlState = key;

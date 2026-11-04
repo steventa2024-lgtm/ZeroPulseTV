@@ -45,10 +45,14 @@ public class FixtureProvider extends ContentProvider {
         throw new SecurityException();
     }
     @Override public Bundle call(String method, String arg, Bundle extras) {
-        if (!"grant".equals(method) || Binder.getCallingUid() != Process.SHELL_UID) throw new SecurityException();
-        for (Uri uri : new Uri[]{VALID, INVALID}) {
+        if (!"grant".equals(method)) throw new SecurityException();
+        if (Binder.getCallingUid() != Process.SHELL_UID) requireTarget();
+        long identity = Binder.clearCallingIdentity();
+        try {
+          for (Uri uri : new Uri[]{VALID, INVALID}) {
             getContext().grantUriPermission(TARGET, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        }
+          }
+        } finally { Binder.restoreCallingIdentity(identity); }
         return new Bundle();
     }
     @Override public Cursor query(Uri uri, String[] projection, String where, String[] args, String sort) {

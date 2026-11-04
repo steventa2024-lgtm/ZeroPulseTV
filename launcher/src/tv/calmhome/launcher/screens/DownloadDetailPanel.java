@@ -43,6 +43,7 @@ final class DownloadDetailPanel extends DownloadPage {
         LinearLayout info = column();
         info.addView(metadata);
         body.addView(info, spaced(8));
+        body.addView(action("Back", () -> host.close(this)), spaced(6));
         refresh();
         body.postDelayed(tick, 850);
         return screen("Download details");

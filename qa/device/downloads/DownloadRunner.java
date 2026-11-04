@@ -2,7 +2,7 @@ package tv.calmhome.downloadqa;
 
 import android.app.Activity;
 import android.app.Instrumentation;
-import android.content.Intent;
+import tv.calmhome.launcher.data.Prefs;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -21,7 +21,13 @@ public final class DownloadRunner extends Instrumentation {
                 throw new IllegalStateException("Disposable Android Emulator required.");
             Downloads d = Downloads.get(getTargetContext());
             String phase = args.getString("phase", "verify");
-            if (phase.equals("resume")) {
+            // Starting instrumentation force-stops the target, dropping prior temporary URI grants.
+            if (!phase.equals("resume")) getTargetContext().getContentResolver().call(FixtureProvider.VALID, "grant", null, null);
+            if (phase.equals("prepare")) {
+                Prefs prefs = new Prefs(getTargetContext());
+                java.util.List<String> dock = prefs.dock();
+                if (dock.remove("tv.calmhome.downloadfixture")) prefs.setDock(dock);
+            } else if (phase.equals("resume")) {
                 long id = Long.parseLong(args.getString("id"));
                 verify(d.find(id));
                 d.remove(id);
@@ -59,16 +65,16 @@ public final class DownloadRunner extends Instrumentation {
                     verify(await(d, retry));
                 } finally { d.remove(retry); }
             } else if (phase.equals("install-allow") || phase.equals("install-deny")) {
-                check(getTargetContext().getPackageManager().canRequestPackageInstalls(),
-                        "Enable the launcher as an installation source in Android settings on this emulator.");
-                long id = d.importFile(FixtureProvider.VALID, "");
-                verify(await(d, id));
-                Activity home = startActivitySync(new Intent().setClassName("tv.calmhome.launcher",
-                        "tv.calmhome.launcher.MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                runOnMainSync(() -> d.install(home, id));
-                DownloadRecord end = await(d, id);
-                if (phase.equals("install-allow")) check(end.state == INSTALLED && d.isInstalled(id), "Missing confirmed installation");
-                else check(end.state == CANCELED || end.state == FAILED, "Android did not deny/cancel the installation");
+                long id = Long.parseLong(args.getString("id"));
+                DownloadRecord end = d.find(id);
+                check(end != null && "tv.calmhome.downloadfixture".equals(end.packageName), "Wrong test record.");
+                if (phase.equals("install-allow")) {
+                    check(end.state == INSTALLED && d.isInstalled(id), "Missing confirmed installation");
+                    check(new Prefs(getTargetContext()).dock().contains(end.packageName), "Fixture is absent from the stored dock.");
+                } else {
+                    check(end.state == CANCELED || end.state == FAILED && end.error.contains("denied"),
+                            "Android did not deny/cancel the installation.");
+                }
                 result.putString("status", end.state + " " + end.error);
                 d.remove(id);
             } else throw new IllegalArgumentException("Unknown test phase");

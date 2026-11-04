@@ -17,7 +17,7 @@ class Emulator:
             raise RuntimeError("Selected target is not an Android Emulator.")
 
     def command(self, *args):
-        return subprocess.check_output(self.adb + list(args), text=True, timeout=200, errors="replace")
+        return subprocess.check_output(self.adb + list(args), text=True, encoding="utf-8", timeout=200, errors="replace")
 
     def shell(self, *args):
         return self.command("shell", *args)
@@ -79,6 +79,7 @@ class Emulator:
         initial = self.shell("am", "start", "-W", "-n", component)
         (self.out / "startup.txt").write_text(initial, encoding="utf-8")
         time.sleep(1.5)
+        self.key("KEYCODE_DPAD_RIGHT")  # Leave touch mode introduced by the system setup UI.
         home = self.capture("01-home")
         if not self.contains(home, "Downloads"):
             raise RuntimeError("Home navigation not visible")
@@ -115,8 +116,11 @@ class Emulator:
         time.sleep(2)
 
     def allow_source_in_settings(self):
+        # Returning from instrumentation can leave the target stopped. Show it once before
+        # Android's TV settings enumerates eligible source applications.
+        self.shell("am", "start", "-W", "-n", "tv.calmhome.launcher/.MainActivity")
         self.shell("am", "start", "-W", "-a", "android.settings.MANAGE_UNKNOWN_APP_SOURCES", "-d", "package:tv.calmhome.launcher")
-        for _ in range(5):
+        for _ in range(12):
             t = self.tree()
             options = list(t.iter("node"))
             toggles = [n for n in options if n.get("checkable") == "true"]
@@ -142,50 +146,84 @@ class Emulator:
             if labels:
                 self.tap(labels[-1])
             else:
-                break
+                time.sleep(1)
         self.capture("05-source-settings-failure")
         raise RuntimeError("Could not locate ZeroPulse's installation-source switch in Android settings")
 
+    def click_text(self, label, contains=False, pkg="tv.calmhome.launcher", timeout=16):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for n in self.tree().iter("node"):
+                text = n.get("text", "").strip()
+                if n.get("package") == pkg and (label in text if contains else label == text):
+                    self.tap(n)
+                    return
+            time.sleep(.3)
+        raise RuntimeError("No actionable UI label: " + label)
+
     def consent(self, phase, choice):
-        self.grant_fixtures()
-        log = self.out / (phase + ".txt")
-        args = self.adb + ["shell", "am", "instrument", "-w", "-e", "phase", phase, "tv.calmhome.downloadqa/.DownloadRunner"]
-        with log.open("w", encoding="utf-8") as dest:
-            proc = subprocess.Popen(args, stdout=dest, stderr=subprocess.STDOUT, text=True)
-            try:
-                deadline = time.monotonic() + 120
-                while proc.poll() is None and time.monotonic() < deadline:
-                    t = self.tree()
-                    if self.contains(t, "ZeroPulse QA sample"):
-                        button = next((n for n in t.iter("node") if n.get("text", "").strip().casefold() == choice and
-                                       n.get("package", "").endswith(("packageinstaller", "permissioncontroller"))), None)
-                        if button is not None:
-                            self.capture(phase + "-android-confirmation", t)
-                            self.tap(button)
-                            break
-                    time.sleep(.5)
-                proc.wait(timeout=180)
-            finally:
-                if proc.poll() is None:
-                    proc.terminate()
-        if "result=PASS " + phase not in log.read_text(encoding="utf-8"):
-            self.capture(phase + "-failure")
-            raise RuntimeError(log.read_text(encoding="utf-8"))
+        # Seed through the actual native job. Exercise installation via the owner's normal
+        # foreground controls, outside instrumentation (which stops its target when it exits).
+        seed = self.phase("seed")
+        (self.out / (phase + "-seed.txt")).write_text(seed, encoding="utf-8")
+        id_ = re.search(r"downloadId=(\d+)", seed)[1]
+        self.shell("am", "start", "-W", "-n", "tv.calmhome.launcher/.MainActivity", "--es", "zp_open", "downloads")
+        self.click_text("Manage Downloads")
+        self.click_text("Ready for installation", contains=True)
+        self.capture(phase + "-inspected-apk")
+        self.click_text("Install with Android approval")
+        deadline = time.monotonic() + 60
+        prompt_seen = False
+        continued = False
+        while time.monotonic() < deadline:
+            t = self.tree()
+            if self.contains(t, "ZeroPulse QA sample"):
+                choices = (choice, "update") if choice == "install" else (choice,)
+                button = next((n for n in t.iter("node") if n.get("text", "").strip().casefold() in choices and
+                               n.get("package", "").endswith(("packageinstaller", "permissioncontroller"))), None)
+                if button is not None:
+                    self.capture(phase + "-android-confirmation", t)
+                    self.tap(button)
+                    prompt_seen = True
+                    break
+            if not continued and time.monotonic() > deadline - 53 and self.contains(t, "Continue Android approval"):
+                self.click_text("Continue Android approval")
+                continued = True
+        if not prompt_seen:
+            self.capture(phase + "-missing-system-prompt")
+            raise RuntimeError("The system confirmation dialog did not appear.")
+        deadline = time.monotonic() + 70
+        while time.monotonic() < deadline:
+            t = self.tree()
+            if phase == "install-allow" and self.contains(t, "Open app"):
+                self.capture(phase + "-confirmed", t)
+                self.click_text("Add to dock")
+                self.click_text("Open app")
+                time.sleep(1)
+                foreground = self.shell("dumpsys", "activity", "activities")
+                if not any("topResumedActivity" in line and "tv.calmhome.downloadfixture/" in line for line in foreground.splitlines()):
+                    raise RuntimeError("Open app did not launch the installed TV fixture")
+                self.capture("08-fixture-open")
+                self.key("KEYCODE_BACK")
+                break
+            if phase == "install-deny" and self.contains(t, "Retry"):
+                self.capture(phase + "-confirmed", t)
+                break
+            time.sleep(.5)
+        else:
+            self.capture(phase + "-missing-result")
+            raise RuntimeError("No terminal installation result appeared in the launcher.")
+        self.phase(phase, "-e", "id", id_)
 
     def restart_recovery(self):
         seed = self.phase("seed")
+        (self.out / "reboot-seed.txt").write_text(seed, encoding="utf-8")
         match = re.search(r"downloadId=(\d+)", seed)
         if not match:
             raise RuntimeError(seed)
         self.command("reboot")
         self.online()
         self.phase("resume", "-e", "id", match[1])
-
-    def fixture_open(self):
-        result = self.shell("am", "start", "-W", "-n", "tv.calmhome.downloadfixture/android.app.Activity")
-        if "Status: ok" not in result:
-            raise RuntimeError(result)
-        self.capture("08-fixture-open")
 
     def run(self):
         outcomes = []
@@ -200,14 +238,14 @@ class Emulator:
                 print(outcomes[-1], flush=True)
                 return False
 
+        test("Prepare disposable fixture", lambda: self.phase("prepare"))
         test("TV D-pad", self.visual)
         test("JobScheduler, APK parser and actual cancel/retry", lambda: self.phase("verify"))
         test("HTTPS release transfer and self-update refusal", lambda: self.phase("https"))
         test("Persistence across emulator reboot", self.restart_recovery)
         if test("Android source settings", self.allow_source_in_settings):
             test("Android installer cancellation", lambda: self.consent("install-deny", "cancel"))
-            if test("Android installer approval and detection", lambda: self.consent("install-allow", "install")):
-                test("Installed TV activity launch", self.fixture_open)
+            test("Android approval, package detection, Open app and Add to dock", lambda: self.consent("install-allow", "install"))
         (self.out / "gfxinfo.txt").write_text(self.shell("dumpsys", "gfxinfo", "tv.calmhome.launcher"), encoding="utf-8")
         (self.out / "memory.txt").write_text(self.shell("dumpsys", "meminfo", "tv.calmhome.launcher"), encoding="utf-8")
         (self.out / "crash-log.txt").write_text(self.command("logcat", "-b", "crash", "-d"), encoding="utf-8")

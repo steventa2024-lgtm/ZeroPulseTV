@@ -141,6 +141,7 @@ public abstract class Panel {
         clp.topMargin = t.dp(6);
         col.addView(content, clp);
         wallpaperCredit = t.text(c, Theme.T_CAPTION, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
+        wallpaperCredit.setPadding(0, t.dp(3), 0, 0);
         if (host.stage().current() != null) updateCredit(host.stage().current().caption());
         col.addView(wallpaperCredit);
         f.addView(col, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));

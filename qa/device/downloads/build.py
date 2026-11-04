@@ -26,7 +26,7 @@ def build(sdk, jdk, bt, key, output):
         assets.mkdir()
         def link(manifest, out):
             run([aapt, "link", "-o", out, "-I", android, "--manifest", manifest,
-                 "--min-sdk-version", "26", "--target-sdk-version", "31"])
+                 "--min-sdk-version", "26", "--target-sdk-version", "34"])
         def sign(src, dst):
             aligned = tmp / ("aligned-" + src.name)
             run([align, "-f", "4", src, aligned])

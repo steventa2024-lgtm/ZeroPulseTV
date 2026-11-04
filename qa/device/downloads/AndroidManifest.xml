@@ -1,8 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="tv.calmhome.downloadqa">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="tv.calmhome.downloadqa" android:versionCode="1" android:versionName="1">
     <queries><package android:name="tv.calmhome.launcher" /></queries>
     <instrumentation android:name=".DownloadRunner" android:targetPackage="tv.calmhome.launcher" />
     <application android:label="ZeroPulse download QA" android:allowBackup="false">
         <provider android:name=".FixtureProvider" android:authorities="tv.calmhome.downloadqa.samples"
-            android:exported="true" android:grantUriPermissions="true" />
+            android:exported="true" android:readPermission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true" />
     </application>
 </manifest>

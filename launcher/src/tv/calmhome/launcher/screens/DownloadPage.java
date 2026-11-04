@@ -26,6 +26,10 @@ abstract class DownloadPage extends Panel {
         ScrollView scroll = new ScrollView(c);
         scroll.setClipChildren(false);
         scroll.setClipToPadding(false);
+        // Keep a tall document inside its viewport, including above the separate wallpaper credit.
+        scroll.setOutlineProvider(android.view.ViewOutlineProvider.BOUNDS);
+        scroll.setClipToOutline(true);
+        scroll.setSmoothScrollingEnabled(!t.reducedMotion);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setFillViewport(true);
         scroll.addView(body);

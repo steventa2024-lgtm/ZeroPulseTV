@@ -178,13 +178,12 @@ try {
   capture('08-inputs', /OK to switch/);
   await open('Settings');
   capture('09-settings', 'Appearance');
-  await focus('Wallpapers');
-  await open('Choose wallpaper');
+  // Return to the Home shortcut instead of navigating through adjustable settings rows.
+  await key('BACK');
+  await open('Wallpapers');
   capture('10-wallpapers', 'Wallpapers');
-  await backTo('Choose wallpaper');
-  // Settings includes a category named Assistant. Select the unique navigation TextView.
+  await backTo('Wallpapers');
   if (tree().nodes.some(n => n.class === 'android.widget.TextView' && n.label === 'Assistant' && n.clickable === 'true')) {
-    await open('Home');
     await open('Assistant');
     capture('11-assistant', /Local TV commands|Connect your PC|PC paired|Gateway/i);
     await key('BACK');

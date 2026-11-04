@@ -35,7 +35,7 @@ foreach ($suite in @("tv.calmhome.launcher.downloads.CatalogTests", "tv.calmhome
     if ($LASTEXITCODE -ne 0) { $testExit = 1 }
 }
 if (Get-Command node -ErrorAction SilentlyContinue) {
-    & node --test (Join-Path $root "qa\tests\claude-code-provider.test.mjs") (Join-Path $root "website\test.mjs")
+    & node --test (Join-Path $root "qa\tests\claude-code-provider.test.mjs") (Join-Path $root "qa\tests\recognizer-routing.test.mjs") (Join-Path $root "website\test.mjs")
     if ($LASTEXITCODE -ne 0) { $testExit = 1 }
 } else { "SKIP Node provider and website tests: Node.js unavailable." }
 

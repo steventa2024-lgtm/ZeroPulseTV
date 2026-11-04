@@ -22,7 +22,7 @@ if [[ $# == 1 ]]; then
 fi
 compile_app
 if command -v node >/dev/null; then
-    node --test "$ROOT/qa/tests/claude-code-provider.test.mjs" "$ROOT/website/test.mjs"
+    node --test "$ROOT/qa/tests/claude-code-provider.test.mjs" "$ROOT/qa/tests/recognizer-routing.test.mjs" "$ROOT/website/test.mjs"
 else
     echo "SKIP Node provider and website tests: Node.js unavailable."
 fi

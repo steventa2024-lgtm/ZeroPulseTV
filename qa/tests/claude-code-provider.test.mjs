@@ -163,7 +163,8 @@ test("installed Claude Code talks to a loopback Messages fixture with no tools o
     res.writeHead(200, { "Content-Type": "text/event-stream" });
     for (const event of [{ type: "message_start", message: msg },
       { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },
-      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Fixture reply" } },
+      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Fixture " } },
+      { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "reply" } },
       { type: "content_block_stop", index: 0 }, { type: "message_delta",
         delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 2 } },
       { type: "message_stop" }]) {
@@ -188,7 +189,7 @@ test("installed Claude Code talks to a loopback Messages fixture with no tools o
     const provider = new ClaudeCodeProvider({ executable: process.env.ZEROPULSE_TEST_CLAUDE_EXE, apiKey: fixtureKey }, runner);
     const received = [];
     assert.equal((await provider.answer(ask, undefined, text => received.push(text))).text, "Fixture reply");
-    assert.equal(received.join(""), "Fixture reply");
+    assert.deepEqual(received, ["Fixture ", "reply"]);
     assert.equal(messagesRequest.usedFixtureKey, true);
     assert.equal(messagesRequest.tools?.length ?? 0, 0);
   } finally {

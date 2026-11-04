@@ -7,8 +7,8 @@ import path from 'node:path';
 
 const serial = process.argv[2];
 const mode = process.argv[4];
-if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k','--published-release','--installed-library'].includes(mode))) {
-  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k|--published-release|--installed-library]');
+if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k','--emulator-assistant-entry','--published-release','--installed-library'].includes(mode))) {
+  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k|--emulator-assistant-entry|--published-release|--installed-library]');
   process.exit(2);
 }
 const pkg = 'tv.calmhome.launcher';
@@ -26,8 +26,12 @@ const save = (name, data) => writeFileSync(path.join(output, name), data);
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const decode = s => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
 function tree() {
-  const dump = adb('exec-out', 'uiautomator', 'dump', '/dev/tty').toString();
-  const xml = dump.match(/<\?xml[\s\S]*?<\/hierarchy>/)?.[0];
+  // Transient window transitions can produce an empty hierarchy on a physical TV.
+  let xml;
+  for (let attempt = 0; attempt < 3 && !xml; attempt++) {
+    const dump = adb('exec-out', 'uiautomator', 'dump', '/dev/tty').toString();
+    xml = dump.match(/<\?xml[\s\S]*?<\/hierarchy>/)?.[0];
+  }
   assert.ok(xml, 'UIAutomator did not return a complete accessibility hierarchy');
   const nodes = [...xml.matchAll(/<node\s+[^>]*>/g)].map(([tag]) => {
     const n = Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(([, k, v]) => [k, decode(v)]));
@@ -197,6 +201,10 @@ async function fullNavigation() {
   await backTo('Wallpapers');
   if (tree().nodes.some(n => n.class === 'android.widget.TextView' && n.label === 'Assistant' && n.clickable === 'true')) {
     await open('Assistant');
+    if (/mInputShown=true/.test(shell('dumpsys', 'input_method'))) {
+      capture('11-assistant-keyboard', /Local TV commands|Connect your PC|PC paired|Gateway/i);
+      await key('BACK');
+    }
     capture('11-assistant', /Local TV commands|Connect your PC|PC paired|Gateway/i);
     await key('BACK');
   } else console.log('SKIP Assistant: disabled in owner settings');
@@ -281,7 +289,18 @@ try {
   await pause(650);
   // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
   if (!tree().focused) await key('DPAD_DOWN');
-  if (mode === '--installed-library') await installedLibrary();
+  if (mode === '--emulator-assistant-entry') {
+    assert.match(serial, /^emulator-\d+$/);
+    assert.equal(shell('getprop','ro.kernel.qemu').trim(),'1');
+    await open('Assistant');
+    await pause(650);
+    const shown = /mInputShown=true/.test(shell('dumpsys','input_method'));
+    capture('remote-assistant-entry', 'Conversation');
+    if (shown) { await key('BACK'); await pause(400); }
+    assert.ok(!/mInputShown=true/.test(shell('dumpsys','input_method')), 'Keyboard still showing');
+    capture('remote-assistant-dashboard', 'Conversation');
+    save('entry-keyboard.txt', 'Keyboard on normal D-pad entry: ' + (shown ? 'shown' : 'hidden') + '\n');
+  } else if (mode === '--installed-library') await installedLibrary();
   else if (mode === '--published-release') await publishedRelease();
   else if (mode) await emulatorDisplayTest();
   else await fullNavigation();

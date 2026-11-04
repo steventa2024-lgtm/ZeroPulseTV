@@ -8,6 +8,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Connection policy and state for the Assistant's JARVIS link. Runs everything on one background thread.
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public final class JarvisSession {
 
     public enum State {
-        NOT_CONFIGURED, CONNECTING, WAITING_APPROVAL, CONNECTED, OFFLINE, CERT_CHANGED, REVOKED, PAIRING_FAILED
+        NOT_CONFIGURED, CONNECTING, WAITING_APPROVAL, CONNECTED, OFFLINE, CERT_CHANGED, REVOKED, DENIED, PAIRING_FAILED
     }
 
     /** Saved pairing. The token is a secret: CredentialStore keeps it Keystore-encrypted on the TV. */
@@ -52,6 +53,7 @@ public final class JarvisSession {
         /** state: delta | final | error | aborted | timeout | busy */
         void onReply(String state, String text);
         void onHistory(List<String[]> messages);
+        default void onProvider(ClaudeCodeStatus status) { }
     }
 
     public static final int[] RETRY_SECONDS = {3, 8, 20};
@@ -72,6 +74,7 @@ public final class JarvisSession {
     });
 
     private GatewayLink link;
+    private boolean providerReported;
     private State state = State.NOT_CONFIGURED;
     private boolean active;
     private int attempt;
@@ -79,6 +82,7 @@ public final class JarvisSession {
     private long generation;
     private String runId;
     private long pairingSince;
+    private final AtomicLong pairingEpoch = new AtomicLong();
 
     public JarvisSession(CredentialStore store, Listener listener, String displayName, String version,
                          int connectTimeoutMs) {
@@ -96,13 +100,14 @@ public final class JarvisSession {
             active = true;
             attempt = 0;
             Pairing p = store.load();
-            if (p == null) set(State.NOT_CONFIGURED, "");
-            else if (state == State.CERT_CHANGED || state == State.REVOKED) set(state, "");
+            if (state == State.REVOKED || state == State.DENIED || state == State.CERT_CHANGED) set(state, "");
+            else if (p == null) set(State.NOT_CONFIGURED, "");
             else connect(p);
         });
     }
 
     public void stop() {
+        pairingEpoch.incrementAndGet();
         exec.execute(() -> {
             active = false;
             generation++;
@@ -129,6 +134,7 @@ public final class JarvisSession {
 
     /** Pair with the PC using the code from `openpulse tv invite`. */
     public void pair(String host, int port, String typedCode) {
+        long epoch = pairingEpoch.incrementAndGet();
         exec.execute(() -> {
             if (!isIpv4(host)) {
                 set(State.PAIRING_FAILED, "Enter the PC's IP address, for example 192.168.4.33.");
@@ -142,12 +148,13 @@ public final class JarvisSession {
             closeLink();
             cancelTimers();
             pairingSince = System.currentTimeMillis();
-            pairAttempt(host, port, code, ++generation);
+            pairAttempt(host, port, code, ++generation, epoch);
         });
     }
 
     /** After the PC certificate was rotated: verify the new one with a fresh code, keep the pairing. */
     public void reverify(String typedCode) {
+        long epoch = pairingEpoch.incrementAndGet();
         exec.execute(() -> {
             Pairing p = store.load();
             PairingCode code = PairingCode.parse(typedCode);
@@ -158,6 +165,7 @@ public final class JarvisSession {
             try {
                 GatewayLink l = GatewayLink.open(p.host, p.port, trust, store.signer(), "zeropulse-tv", displayName,
                         version, Json.map("deviceToken", p.token), connectTimeoutMs, events(++generation));
+                if (epoch != pairingEpoch.get()) { l.close(); return; }
                 store.save(new Pairing(p.host, p.port, trust.observed(), p.token));
                 connected(l);
             } catch (GatewayLink.Refused r) {
@@ -170,6 +178,7 @@ public final class JarvisSession {
     }
 
     public void cancelPairing() {
+        pairingEpoch.incrementAndGet();
         exec.execute(() -> {
             generation++;
             cancelTimers();
@@ -189,6 +198,7 @@ public final class JarvisSession {
                 runId = Json.str(r, "runId");
                 armWatchdog();
             } catch (GatewayLink.Refused r) {
+                if ("PROVIDER_RATE_LIMITED".equals(r.code)) listener.onProvider(ClaudeCodeStatus.RATE_LIMITED);
                 listener.onReply("error", r.getMessage() != null ? r.getMessage() : "JARVIS refused that.");
             } catch (IOException e) {
                 listener.onReply("error", "The message did not reach the PC.");
@@ -267,8 +277,8 @@ public final class JarvisSession {
         }
     }
 
-    private void pairAttempt(String host, int port, PairingCode code, long gen) {
-        if (gen != generation) return;
+    private void pairAttempt(String host, int port, PairingCode code, long gen, long epoch) {
+        if (gen != generation || epoch != pairingEpoch.get()) return;
         if (System.currentTimeMillis() - pairingSince > APPROVAL_LIMIT_MS) {
             set(State.PAIRING_FAILED, "No approval arrived. Create a new code on the PC.");
             return;
@@ -278,6 +288,7 @@ public final class JarvisSession {
         try {
             GatewayLink l = GatewayLink.open(host, port, trust, store.signer(), "zeropulse-tv", displayName, version,
                     Json.map("pairingCode", code.secret), connectTimeoutMs, events(gen));
+            if (epoch != pairingEpoch.get()) { l.close(); return; }
             String token = l.hello().deviceToken;
             if (token == null) {
                 l.close();
@@ -290,7 +301,9 @@ public final class JarvisSession {
         } catch (GatewayLink.Refused r) {
             if ("PAIRING_REQUIRED".equals(r.code)) {
                 set(State.WAITING_APPROVAL, tvCode());
-                retry = exec.schedule(() -> pairAttempt(host, port, code, gen), APPROVAL_POLL_MS, TimeUnit.MILLISECONDS);
+                retry = exec.schedule(() -> pairAttempt(host, port, code, gen, epoch), APPROVAL_POLL_MS, TimeUnit.MILLISECONDS);
+            } else if ("FORBIDDEN".equals(r.code) || "rejected".equals(r.reason())) {
+                set(State.DENIED, "The PC denied the pairing request. Create a new invitation to try again.");
             } else {
                 set(State.PAIRING_FAILED, r.getMessage() != null ? r.getMessage() : "The PC refused the code.");
             }
@@ -298,7 +311,7 @@ public final class JarvisSession {
             if (GatewayLink.mismatchIn(e) != null)
                 set(State.PAIRING_FAILED, "This PC's certificate does not match the code. Check the address and code.");
             else if (state == State.WAITING_APPROVAL)
-                retry = exec.schedule(() -> pairAttempt(host, port, code, gen), APPROVAL_POLL_MS, TimeUnit.MILLISECONDS);
+                retry = exec.schedule(() -> pairAttempt(host, port, code, gen, epoch), APPROVAL_POLL_MS, TimeUnit.MILLISECONDS);
             else
                 set(State.PAIRING_FAILED, "Could not reach the PC at " + host + ":" + port + ".");
         }
@@ -316,6 +329,8 @@ public final class JarvisSession {
         link = l;
         String name = l.hello().assistantName;
         set(State.CONNECTED, name != null ? name : "JARVIS");
+        providerReported = false;
+        if (l.hello().methods.contains("tv.status")) refreshProvider();
         try {
             Map<String, Object> h = l.request("tv.chat.history", Json.map("limit", 20), 8000);
             List<String[]> out = new ArrayList<>();
@@ -330,13 +345,26 @@ public final class JarvisSession {
         }
     }
 
+    private void refreshProvider() {
+        if (link == null || state != State.CONNECTED) return;
+        try {
+            ClaudeCodeStatus status = ClaudeCodeStatus.fromPayload(link.request("tv.status", Json.map(), 2500));
+            providerReported = status != ClaudeCodeStatus.UNKNOWN;
+            listener.onProvider(status);
+        } catch (IOException | GatewayLink.Refused ignored) {
+            listener.onProvider(ClaudeCodeStatus.UNKNOWN);
+        }
+    }
+
     private void refused(GatewayLink.Refused r) {
         closeLink();
         if ("UNAUTHORIZED".equals(r.code) && "revoked".equals(r.reason())) {
             store.clear();
             set(State.REVOKED, "This TV was removed on the PC. Pair again to reconnect.");
+        } else if ("FORBIDDEN".equals(r.code) || "UNAUTHORIZED".equals(r.code)) {
+            set(State.DENIED, "The PC denied this TV access. Check the TV link on the PC.");
         } else {
-            set(State.OFFLINE, r.getMessage() != null ? r.getMessage() : "The PC refused the connection.");
+            set(State.OFFLINE, "The PC could not establish the link. Retry when the gateway is ready.");
         }
     }
 
@@ -389,7 +417,9 @@ public final class JarvisSession {
     }
 
     private void handleEvent(String event, Map<String, Object> p) {
-        if ("chat".equals(event)) {
+        if ("tv.status".equals(event)) {
+            listener.onProvider(ClaudeCodeStatus.fromPayload(p));
+        } else if ("chat".equals(event)) {
             String s = Json.str(p, "state");
             String text = Json.str(p, "text");
             if ("delta".equals(s)) {
@@ -398,10 +428,13 @@ public final class JarvisSession {
             } else if ("final".equals(s)) {
                 cancelReplyTimers();
                 listener.onReply("final", text != null ? text : "");
+                if (providerReported) refreshProvider();
             } else if ("error".equals(s)) {
                 cancelReplyTimers();
+                if ("PROVIDER_RATE_LIMITED".equals(Json.str(p, "code"))) listener.onProvider(ClaudeCodeStatus.RATE_LIMITED);
                 String err = Json.str(p, "error");
                 listener.onReply("error", err != null ? err : "JARVIS ran into a problem.");
+                if (providerReported) refreshProvider();
             } else if ("aborted".equals(s)) {
                 cancelReplyTimers();
                 listener.onReply("aborted", "");
@@ -449,6 +482,7 @@ public final class JarvisSession {
     private void set(State s, String detail) {
         state = s;
         listener.onState(s, detail);
+        if (s != State.CONNECTED) listener.onProvider(ClaudeCodeStatus.UNKNOWN);
     }
 
     /** For tests: run a task on the session thread and wait for it. */

@@ -78,6 +78,23 @@ public final class WallpaperStage {
         fadeMs = ms;
     }
 
+    /** Blur only the two wallpaper layers while reading a panel. Text and cards stay sharp. */
+    public void setFrosted(boolean enabled) {
+        if (android.os.Build.VERSION.SDK_INT >= 31 && front.isHardwareAccelerated()) {
+            WallpaperFrost.apply(front, back, enabled);
+        }
+    }
+
+    private static final class WallpaperFrost {
+        private static final android.graphics.RenderEffect EFFECT = android.graphics.RenderEffect.createBlurEffect(
+                5f, 5f, android.graphics.Shader.TileMode.CLAMP);
+
+        static void apply(ImageView front, ImageView back, boolean enabled) {
+            front.setRenderEffect(enabled ? EFFECT : null);
+            back.setRenderEffect(enabled ? EFFECT : null);
+        }
+    }
+
     /** Begins (or resumes) showing wallpapers; call from onStart. */
     public void start() {
         started = true;
@@ -151,7 +168,7 @@ public final class WallpaperStage {
         onScreen = bmp;
         showing = in;
         current = e;
-        int ms = animate ? fadeMs : 300;
+        int ms = animate ? fadeMs : Math.min(fadeMs, 300);
         in.animate().alpha(1f).setDuration(ms).withLayer().start();
         if (out != null) {
             out.animate().alpha(0f).setDuration(ms).withLayer().withEndAction(() -> {

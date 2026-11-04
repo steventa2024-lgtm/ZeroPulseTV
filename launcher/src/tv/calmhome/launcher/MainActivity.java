@@ -18,7 +18,6 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TextClock;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,6 +34,9 @@ import tv.calmhome.launcher.data.Prefs;
 import tv.calmhome.launcher.data.WallpaperStage;
 import tv.calmhome.launcher.screens.AboutPanel;
 import tv.calmhome.launcher.screens.AppsPanel;
+import tv.calmhome.launcher.screens.DownloadsPanel;
+import tv.calmhome.launcher.downloads.Downloads;
+import tv.calmhome.launcher.ui.Navigation;
 import tv.calmhome.launcher.screens.InputsPanel;
 import tv.calmhome.launcher.screens.MenuPanel;
 import tv.calmhome.launcher.screens.Panel;
@@ -68,10 +70,11 @@ public class MainActivity extends Activity implements Panel.Host {
 
     private FrameLayout root, mainUi;
     private View dim;
-    private LinearLayout dock, clockBox, greetingBox;
+    private LinearLayout dock, greetingBox;
+    private Navigation navigation;
     private HorizontalScrollView dockScroll;
     private TextView greeting, credit;
-    private View navAssistant, chipAssistant;
+    private View chipAssistant;
     private int tileW, tileH;
     private final List<Panel> panels = new ArrayList<>();
     private BroadcastReceiver packageReceiver;
@@ -96,7 +99,7 @@ public class MainActivity extends Activity implements Panel.Host {
         buildHome();
         setContentView(root);
         buildDock();
-        root.post(this::focusFirstDockTile);
+        root.post(() -> { if (panels.isEmpty()) focusFirstDockTile(); });
 
         packageReceiver = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent i) {
@@ -136,6 +139,7 @@ public class MainActivity extends Activity implements Panel.Host {
 
     @Override
     protected void onDestroy() {
+        for (Panel panel : panels) panel.onClosed();
         unregisterReceiver(packageReceiver);
         stage.shutdown();
         super.onDestroy();
@@ -168,6 +172,7 @@ public class MainActivity extends Activity implements Panel.Host {
         String[] parts = open.split(":", 2);
         switch (parts[0]) {
             case "apps": open(new AppsPanel(this)); break;
+            case "downloads": open(new DownloadsPanel(this)); break;
             case "inputs": open(new InputsPanel(this)); break;
             case "wallpapers": open(new WallpapersPanel(this)); break;
             case "settings": open(new SettingsPanel(this, parts.length > 1 ? parts[1] : null)); break;
@@ -204,54 +209,10 @@ public class MainActivity extends Activity implements Panel.Host {
         root.addView(mainUi, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         int sx = theme.safeX(), sy = theme.safeY();
 
-        // Area A: logo + navigation + clock
-        FrameLayout top = new FrameLayout(this);
-        top.setClipChildren(false);
-        LinearLayout left = new LinearLayout(this);
-        left.setGravity(Gravity.CENTER_VERTICAL);
-        left.setClipChildren(false);
-        left.addView(new PulseLogo(this, theme.dp(30)));
-        LinearLayout nav = new LinearLayout(this);
-        nav.setGravity(Gravity.CENTER_VERTICAL);
-        nav.setPadding(theme.dp(5), theme.dp(5), theme.dp(5), theme.dp(5));
-        nav.setBackground(theme.glass(Theme.R_PILL + 3, 0.55f));
-        nav.addView(w.navItem("Home", true, v -> { closeAll(); focusFirstDockTile(); }));
-        nav.addView(w.navItem("Apps", false, v -> open(new AppsPanel(this))));
-        nav.addView(w.navItem("Inputs", false, v -> open(new InputsPanel(this))));
-        navAssistant = w.navItem("Assistant", false, v -> openAssistant());
-        nav.addView(navAssistant);
-        nav.addView(w.navItem("Settings", false, v -> open(new SettingsPanel(this, null))));
-        LinearLayout.LayoutParams nl = w.wrap();
-        nl.leftMargin = theme.dp(28);
-        left.addView(nav, nl);
-        top.addView(left, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.START | Gravity.CENTER_VERTICAL));
-
-        clockBox = new LinearLayout(this);
-        clockBox.setOrientation(LinearLayout.VERTICAL);
-        clockBox.setGravity(Gravity.END);
-        TextClock time = new TextClock(this);
-        time.setFormat12Hour("h:mm");
-        time.setFormat24Hour("H:mm");
-        theme.style(time, Theme.T_CLOCK, Theme.SOFT_WHITE, Theme.FONT_LIGHT);
-        theme.overPhoto(time);
-        TextClock date = new TextClock(this);
-        date.setFormat12Hour("EEE, MMM d");
-        date.setFormat24Hour("EEE, d MMM");
-        theme.style(date, Theme.T_DATE, Theme.withAlpha(Theme.SOFT_WHITE, 0.85f), Theme.FONT_REGULAR);
-        theme.overPhoto(date);
-        // Fixed-width, right-aligned column: on the TV the content-sized clock was cut off ("7:0") after updates.
-        for (TextView tv : new TextView[]{time, date}) {
-            tv.setGravity(Gravity.END);
-            tv.setSingleLine(true);
-        }
-        clockBox.addView(time, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
-        LinearLayout.LayoutParams dl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
-        dl.topMargin = theme.dp(4);
-        clockBox.addView(date, dl);
-        top.addView(clockBox, new FrameLayout.LayoutParams(theme.dp(220), Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
+        navigation = new Navigation(this, "Home");
         FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP, Gravity.TOP);
         tl.setMargins(sx, sy, sx, 0);
-        mainUi.addView(top, tl);
+        mainUi.addView(navigation, tl);
 
         // Area C: ambient greeting
         greetingBox = new LinearLayout(this);
@@ -286,7 +247,7 @@ public class MainActivity extends Activity implements Panel.Host {
         bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setClipChildren(false);
 
-        float availDp = (theme.screenW() - 2f * sx) / getResources().getDisplayMetrics().density;
+        float availDp = (theme.screenW() - 2f * sx) / getResources().getDisplayMetrics().density / theme.scale;
         tileW = Math.round((availDp - (DOCK_COLUMNS - 1) * Theme.GAP) / DOCK_COLUMNS);
         tileH = Math.round(tileW * 9f / 16f);
         dockScroll = new HorizontalScrollView(this);
@@ -296,6 +257,7 @@ public class MainActivity extends Activity implements Panel.Host {
         // Side padding = safe margin, so a focused (scaled) end tile is never cut off by the screen edge.
         dockScroll.setPadding(sx, theme.dp(10), sx, 0);
         dock = new LinearLayout(this);
+        dock.setBackground(theme.glass(Theme.R_PANEL, .52f));
         dock.setClipChildren(false);
         dockScroll.addView(dock);
         bottom.addView(dockScroll, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
@@ -304,7 +266,7 @@ public class MainActivity extends Activity implements Panel.Host {
         chips.setClipChildren(false);
         chips.setPadding(sx, 0, sx, 0);
         addChip(chips, Glyph.Kind.GRID, "All Apps", false, v -> open(new AppsPanel(this)));
-        addChip(chips, Glyph.Kind.INPUTS, "Inputs", false, v -> open(new InputsPanel(this)));
+        addChip(chips, Glyph.Kind.DOWNLOAD, "Downloads", false, v -> navigate("Downloads"));
         chipAssistant = addChip(chips, Glyph.Kind.ASSISTANT, "Assistant", true, v -> openAssistant());
         addChip(chips, Glyph.Kind.IMAGE, "Wallpapers", false, v -> open(new WallpapersPanel(this)));
         addChip(chips, Glyph.Kind.GEAR, "Settings", false, v -> open(new SettingsPanel(this, null)));
@@ -320,7 +282,7 @@ public class MainActivity extends Activity implements Panel.Host {
         LinearLayout powered = new LinearLayout(this);
         powered.setGravity(Gravity.CENTER_VERTICAL);
         TextView pw = theme.text(this, Theme.T_CAPTION, Theme.withAlpha(Theme.SOFT_WHITE, 0.6f), Theme.FONT_REGULAR);
-        pw.setText("Powered by ZeroPulse AI");
+        pw.setText("ZeroPulse TV");
         powered.addView(pw);
         footer.addView(powered, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
         LinearLayout.LayoutParams fl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
@@ -328,7 +290,7 @@ public class MainActivity extends Activity implements Panel.Host {
         bottom.addView(footer, fl);
 
         FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP, Gravity.BOTTOM);
-        bl.bottomMargin = Math.round(sy * 0.7f);
+        bl.bottomMargin = sy;
         mainUi.addView(bottom, bl);
 
         applyHomePrefs();
@@ -351,6 +313,7 @@ public class MainActivity extends Activity implements Panel.Host {
     private void onWallpaper(WallpaperCatalog.Entry e) {
         // The credit is always shown: CC BY-SA requires attribution wherever the photo is displayed.
         credit.setText(e.caption());
+        for (Panel panel : panels) panel.updateCredit(e.caption());
     }
 
     private void updateGreeting() {
@@ -360,10 +323,9 @@ public class MainActivity extends Activity implements Panel.Host {
     /** Applies preferences that change Home without rebuilding it. */
     private void applyHomePrefs() {
         greetingBox.setVisibility(prefs.showGreeting() ? View.VISIBLE : View.GONE);
-        clockBox.setVisibility(prefs.showClock() ? View.VISIBLE : View.INVISIBLE);
+        navigation.refresh(this);
         dim.setBackgroundColor(Color.argb(Math.round(2.55f * prefs.dimPercent()), 0, 0, 0));
         int a = prefs.assistantEnabled() ? View.VISIBLE : View.GONE;
-        navAssistant.setVisibility(a);
         chipAssistant.setVisibility(a);
     }
 
@@ -374,6 +336,7 @@ public class MainActivity extends Activity implements Panel.Host {
         // first remaining focusable view, so remember whether focus belongs in the dock.
         View focused = root.findFocus();
         boolean focusInDock = focused == null || isInside(focused, dock);
+        Object focusedPackage = focused != null && focusInDock ? focused.getTag() : null;
         dock.removeAllViews();
         for (String pkg : DockList.visible(prefs.dock(), apps::usable)) {
             View tile = w.appTile(apps.banner(pkg), apps.icon(pkg), apps.label(pkg), tileW, tileH, prefs.labelsAlways(),
@@ -381,6 +344,7 @@ public class MainActivity extends Activity implements Panel.Host {
             LinearLayout.LayoutParams lp = w.wrap();
             if (dock.getChildCount() > 0) lp.leftMargin = theme.dp(Theme.GAP);
             dock.addView(tile, lp);
+            Widgets.cardOf(tile).setTag(pkg);
         }
         if (dock.getChildCount() == 0) {
             View tile = w.appTile(null, new Glyph(Glyph.Kind.GRID, Theme.SOFT_WHITE), "Add apps", tileW, tileH, true,
@@ -393,7 +357,10 @@ public class MainActivity extends Activity implements Panel.Host {
         for (View v : new View[]{first, last}) if (v.getId() == View.NO_ID) v.setId(View.generateViewId());
         first.setNextFocusLeftId(first.getId());
         last.setNextFocusRightId(last.getId());
-        if (panels.isEmpty() && focusInDock) focusFirstDockTile();
+        if (panels.isEmpty() && focusInDock) {
+            View restored = focusedPackage == null ? null : dock.findViewWithTag(focusedPackage);
+            if (restored == null || !restored.requestFocus()) focusFirstDockTile();
+        }
     }
 
     private void focusFirstDockTile() {
@@ -450,6 +417,7 @@ public class MainActivity extends Activity implements Panel.Host {
 
     @Override
     public void open(Panel p) {
+        View previousFocus = root.findFocus();
         View v = p.view();
         if (panels.isEmpty()) {
             mainUi.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
@@ -457,8 +425,10 @@ public class MainActivity extends Activity implements Panel.Host {
         } else {
             View below = panels.get(panels.size() - 1).view();
             ((ViewGroup) below).setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            if (!p.isModal()) below.setVisibility(View.INVISIBLE);
         }
-        p.setReturnFocus(root.findFocus());
+        stage.setFrosted(!p.isModal() || panels.size() > 0);
+        p.setReturnFocus(previousFocus);
         panels.add(p);
         v.setAlpha(0f);
         root.addView(v, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
@@ -475,11 +445,13 @@ public class MainActivity extends Activity implements Panel.Host {
         p.onClosed();
         View back = p.returnFocus();
         if (panels.isEmpty()) {
+            stage.setFrosted(false);
             mainUi.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             mainUi.animate().alpha(1f).setDuration(theme.fadeMs(180)).start();
             applyHomePrefs();
         } else {
             Panel top = panels.get(panels.size() - 1);
+            top.view().setVisibility(View.VISIBLE);
             ((ViewGroup) top.view()).setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             top.onUncovered();
         }
@@ -504,6 +476,41 @@ public class MainActivity extends Activity implements Panel.Host {
     public void rebuild(String reopen) {
         if (reopen != null) getIntent().putExtra(EXTRA_OPEN, reopen);
         recreate();
+    }
+
+    @Override
+    public void navigate(String tab) {
+        if ("Assistant".equals(tab)) { openAssistant(); return; }
+        closeAll();
+        switch (tab) {
+            case "Home": focusFirstDockTile(); break;
+            case "Apps": open(new AppsPanel(this)); break;
+            case "Downloads": open(new DownloadsPanel(this)); break;
+            case "Inputs": open(new InputsPanel(this)); break;
+            case "Settings": open(new SettingsPanel(this, null)); break;
+            default: throw new IllegalArgumentException("Unknown navigation tab");
+        }
+    }
+
+    private static final int PICK_APK = 713;
+
+    @Override
+    public void pickApk() {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(pick, PICK_APK); }
+        catch (android.content.ActivityNotFoundException e) { toast("This TV has no document picker. Enter a developer HTTPS link instead."); }
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != PICK_APK || result != RESULT_OK || data == null || data.getData() == null) return;
+        try {
+            long id = Downloads.get(this).importFile(data.getData(), "");
+            if (panels.isEmpty()) open(new DownloadsPanel(this));
+            open(DownloadsPanel.detail(this, id));
+        } catch (IllegalArgumentException | IllegalStateException | SecurityException e) { toast(e.getMessage()); }
     }
 
     @Override

@@ -1,0 +1,30 @@
+name: v3 macOS build
+on:
+  push:
+    branches: [feat/zeropulsetv-v3-glass-downloader-jarvis-20261103]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    if: github.ref == 'refs/heads/feat/zeropulsetv-v3-glass-downloader-jarvis-20261103'
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      BUILD_TOOLS_VERSION: 36.0.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify Apple Silicon and SDK
+        run: |
+          test "$(uname -m)" = arm64
+          echo "JAVA_HOME=$(/usr/libexec/java_home -v 17)" >> "$GITHUB_ENV"
+          test -f "$ANDROID_HOME/platforms/android-34/android.jar"
+          test -x "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/aapt2"
+      - name: Test launcher
+        run: bash qa/run-tests.sh
+      - name: Build and verify a development APK
+        run: bash launcher/build.sh --development --output "$RUNNER_TEMP/ZeroPulseTV-dev.apk"

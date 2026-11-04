@@ -35,14 +35,14 @@ public class PulseLogo extends View {
         this.heightPx = heightPx;
         word.setColor(Theme.SOFT_WHITE);
         word.setTypeface(Typeface.create(Theme.FONT_MEDIUM, Typeface.NORMAL));
-        suffixPaint.setColor(Theme.ELECTRIC_BLUE);
+        suffixPaint.setColor(Theme.SOFT_WHITE);
         suffixPaint.setTypeface(Typeface.create(Theme.FONT_MEDIUM, Typeface.NORMAL));
         for (Paint p : new Paint[]{line, glow}) {
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeJoin(Paint.Join.ROUND);
         }
-        line.setColor(Theme.ELECTRIC_BLUE);
+        line.setColor(Theme.PULSE_CYAN);
         glow.setColor(Theme.withAlpha(Theme.PULSE_CYAN, 0.28f));
         applySize();
     }

@@ -64,7 +64,7 @@ public class InputsPanel extends Panel {
 
     private View card(final TvInputs.Source s, int wDp, int hDp) {
         FrameLayout card = new FrameLayout(c);
-        card.setBackground(t.rounded(Theme.withAlpha(Theme.PANEL_NAVY, 0.92f), Theme.R_PANEL));
+        card.setBackground(t.glass(Theme.R_PANEL, .9f));
         card.setPadding(t.dp(18), t.dp(16), t.dp(18), t.dp(16));
         card.setContentDescription(s.name + ", " + s.detail());
 

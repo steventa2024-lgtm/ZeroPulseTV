@@ -30,6 +30,7 @@ import tv.calmhome.launcher.data.Apps;
 import tv.calmhome.launcher.data.Prefs;
 import tv.calmhome.launcher.data.TvInputs;
 import tv.calmhome.launcher.jarvis.JarvisSession;
+import tv.calmhome.launcher.jarvis.ClaudeCodeStatus;
 import tv.calmhome.launcher.jarvis.TvSuggestion;
 import tv.calmhome.launcher.ui.Glyph;
 import tv.calmhome.launcher.ui.PulseLogo;
@@ -47,7 +48,6 @@ import tv.calmhome.launcher.ui.Widgets;
  */
 public class AssistantActivity extends Activity implements JarvisSession.Listener {
 
-    private static final String VERSION = "2.1";
     private static final int MAX_MESSAGES = 30;
 
     private Prefs prefs;
@@ -60,8 +60,9 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     private LinearLayout commandList, actions, messages;
     private ScrollView convo;
     private EditText input;
-    private Row pcRow, linkRow, keyRow;
+    private Row pcRow, linkRow, keyRow, providerRow;
     private FrameLayout overlay;
+    private LinearLayout dashboard;
     private TextView overlayStatus;
     private EditText hostField, portField, codeField;
     private boolean reverifyMode;
@@ -87,7 +88,10 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         apps = new Apps(this);
         creds = new KeystoreCredentials(this);
         String name = Settings.Global.getString(getContentResolver(), "device_name");
-        session = new JarvisSession(creds, this, name != null && !name.isEmpty() ? name : "ZeroPulse TV", VERSION, 4000);
+        String version;
+        try { version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (android.content.pm.PackageManager.NameNotFoundException e) { version = "unknown"; }
+        session = new JarvisSession(creds, this, name != null && !name.isEmpty() ? name : "ZeroPulse TV", version, 4000);
         getWindow().setBackgroundDrawable(new ColorDrawable(Theme.DEEP_BLACK));
         setContentView(build());
         render(JarvisSession.State.NOT_CONFIGURED, "");
@@ -148,6 +152,20 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     }
 
     @Override
+    public void onProvider(ClaudeCodeStatus status) {
+        main.post(() -> {
+            if (isDestroyed()) return;
+            if (jarvisState != JarvisSession.State.CONNECTED) {
+                setRow(providerRow, "Requires PC link", Theme.MUTED_GRAY);
+            } else {
+                int color = status == ClaudeCodeStatus.AVAILABLE ? Theme.SUCCESS
+                        : status == ClaudeCodeStatus.RATE_LIMITED ? Theme.WARNING : Theme.MUTED_GRAY;
+                setRow(providerRow, status.label, color);
+            }
+        });
+    }
+
+    @Override
     public void onHistory(List<String[]> list) {
         main.post(() -> {
             if (isDestroyed()) return;
@@ -167,8 +185,9 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         root.setBackground(bg);
 
         LinearLayout col = new LinearLayout(this);
+        dashboard = col;
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(t.safeX(), t.safeY(), t.safeX(), Math.round(t.safeY() * 0.7f));
+        col.setPadding(t.safeX(), t.safeY(), t.safeX(), t.safeY());
         col.setClipChildren(false);
         root.addView(col, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
 
@@ -231,19 +250,22 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
 
         LinearLayout conn = new LinearLayout(this);
         conn.setOrientation(LinearLayout.VERTICAL);
-        pcRow = connRow(conn, Glyph.Kind.INPUTS, "JARVIS PC");
-        linkRow = connRow(conn, Glyph.Kind.ASSISTANT, "OpenPulse TV link");
+        pcRow = connRow(conn, Glyph.Kind.INPUTS, "PC pairing");
+        linkRow = connRow(conn, Glyph.Kind.ASSISTANT, "PC gateway");
         keyRow = connRow(conn, Glyph.Kind.INFO, "Device key");
         Row local = connRow(conn, Glyph.Kind.TV, "Local TV commands");
         setRow(local, "Available", Theme.SUCCESS);
-        Row voice = connRow(conn, Glyph.Kind.INFO, "Voice");
-        setRow(voice, "Remote mic → Google", Theme.MUTED_GRAY);
+        providerRow = connRow(conn, Glyph.Kind.ASSISTANT, "Claude Code");
+        setRow(providerRow, "Requires PC link", Theme.MUTED_GRAY);
         actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
         al.topMargin = t.dp(6);
         conn.addView(actions, al);
-        mid.addView(panel("JARVIS", conn), new LinearLayout.LayoutParams(t.dp(230), Widgets.WRAP));
+        ScrollView connection = new ScrollView(this);
+        connection.setFocusable(false);
+        connection.addView(panel("PC connection", conn));
+        mid.addView(connection, new LinearLayout.LayoutParams(t.dp(245), Widgets.MATCH));
         LinearLayout.LayoutParams ml = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
         ml.topMargin = t.dp(12);
         col.addView(mid, ml);
@@ -288,13 +310,14 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(t.dp(26), t.dp(22), t.dp(26), t.dp(22));
-        card.setBackground(t.outlined(Theme.withAlpha(Theme.PANEL_NAVY, 0.97f), Theme.withAlpha(Theme.HOLO_BLUE, 0.5f), 1, Theme.R_PANEL));
+        card.setBackground(t.glass(Theme.R_PANEL, 0.96f));
         TextView title = t.text(this, Theme.T_BODY + 6, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
-        title.setText("Connect to JARVIS");
+        title.setText("Connect your PC");
         card.addView(title, w.wrap());
         TextView help = t.text(this, Theme.T_BODY, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
-        help.setText("On your PC, run  openpulse tv invite  and enter what it shows. The TV checks the PC's "
-                + "certificate against the code before sending anything, and you approve the TV on the PC.");
+        help.setText("1. On your PC, run openpulse tv invite in an OpenPulse build with the TV link.\n"
+                + "2. Enter its address, port and one-time code below.\n"
+                + "3. Match the TV code on your PC and approve the request there.");
         LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
         hl.topMargin = t.dp(6);
         card.addView(help, hl);
@@ -302,6 +325,8 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         portField = field("Port", InputType.TYPE_CLASS_NUMBER);
         codeField = field("Code: XXXX-XXXX-XXXX-XXXX",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+        codeField.setSaveEnabled(false);
+        codeField.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         LinearLayout addr = new LinearLayout(this);
         addr.addView(hostField, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f));
         LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(t.dp(110), Widgets.WRAP);
@@ -341,8 +366,9 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
             case CONNECTED:
                 if (detail != null && !detail.isEmpty()) assistantName = detail;
                 chip(assistantName + " connected", Theme.SUCCESS);
-                setRow(pcRow, "Connected", Theme.SUCCESS);
-                setRow(linkRow, "TLS 1.3 · certificate pinned", Theme.SUCCESS);
+                setRow(pcRow, "Paired", Theme.SUCCESS);
+                setRow(linkRow, "Online · pinned TLS", Theme.SUCCESS);
+                setRow(providerRow, ClaudeCodeStatus.UNKNOWN.label, Theme.MUTED_GRAY);
                 label("ONLINE", Theme.HOLO_BLUE);
                 action(Glyph.Kind.ASSISTANT, "New conversation", session::newConversation);
                 action(Glyph.Kind.INFO, "Disconnect", session::disconnect);
@@ -353,7 +379,8 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 break;
             case CONNECTING:
                 chip("Connecting…", Theme.HOLO_BLUE);
-                setRow(pcRow, "Connecting…", Theme.HOLO_BLUE);
+                setRow(pcRow, creds.load() == null ? "Pairing…" : "Paired", Theme.HOLO_BLUE);
+                setRow(linkRow, "Connecting…", Theme.MUTED_GRAY);
                 label("CONNECTING", Theme.HOLO_BLUE);
                 if (overlay.getVisibility() == View.VISIBLE) overlayStatus("Checking the PC's certificate…", false);
                 break;
@@ -366,8 +393,8 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 break;
             case OFFLINE:
                 chip(assistantName + " offline", Theme.WARNING);
-                setRow(pcRow, "Offline", Theme.WARNING);
-                setRow(linkRow, "Not connected", Theme.MUTED_GRAY);
+                setRow(pcRow, creds.load() == null ? "Not paired" : "Paired", Theme.MUTED_GRAY);
+                setRow(linkRow, "Offline", Theme.WARNING);
                 label("LOCAL MODE", Theme.HOLO_BLUE);
                 action(Glyph.Kind.ASSISTANT, "Retry", session::retry);
                 action(Glyph.Kind.GEAR, "Forget this PC", this::forget);
@@ -385,7 +412,18 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 break;
             case REVOKED:
                 notPaired();
-                say(detail, true);
+                chip("Pairing revoked", Theme.ERROR);
+                setRow(pcRow, "Revoked by PC", Theme.ERROR);
+                say("This TV was removed on the PC. Create a new invitation to reconnect.", true);
+                break;
+            case DENIED:
+                notPaired();
+                chip("Access denied", Theme.WARNING);
+                setRow(pcRow, creds.load() == null ? "Pairing denied" : "Paired", Theme.WARNING);
+                setRow(linkRow, "Access denied", Theme.ERROR);
+                if (creds.load() != null) action(Glyph.Kind.GEAR, "Forget this PC", this::forget);
+                say("Access denied. Check the invitation or device access on the PC.", true);
+                overlayStatus(detail, true);
                 break;
             case PAIRING_FAILED:
                 if (creds.load() == null) notPaired();
@@ -404,7 +442,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         setRow(linkRow, "Off", Theme.MUTED_GRAY);
         label("LOCAL MODE", Theme.HOLO_BLUE);
         actions.removeAllViews();
-        action(Glyph.Kind.ASSISTANT, "Connect to JARVIS", () -> openOverlay(false));
+        action(Glyph.Kind.ASSISTANT, "Connect your PC", () -> openOverlay(false));
         if (messages.getChildCount() == 0) {
             TextView m = t.text(this, Theme.T_BODY, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
             m.setText("TV commands work without a PC. Pair with JARVIS on your PC to ask questions here.");
@@ -516,6 +554,8 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         codeField.setText("");
         overlayStatus(reverify ? "The PC's certificate changed. Run  openpulse tv invite  and enter the new code to verify it."
                 : "", false);
+        dashboard.setDescendantFocusability(android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        dashboard.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         overlay.setVisibility(View.VISIBLE);
         (reverify || hostField.getText().length() > 0 ? codeField : hostField).requestFocus();
     }
@@ -543,9 +583,12 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     }
 
     private void closeOverlay(boolean cancel) {
+        dashboard.setDescendantFocusability(android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        dashboard.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         overlay.setVisibility(View.GONE);
         codeField.setText("");
-        if (cancel && jarvisState == JarvisSession.State.WAITING_APPROVAL) session.cancelPairing();
+        if (cancel && (jarvisState == JarvisSession.State.WAITING_APPROVAL
+                || jarvisState == JarvisSession.State.CONNECTING)) session.cancelPairing();
         if (actions.getChildCount() > 0) actions.getChildAt(0).requestFocus();
     }
 
@@ -727,7 +770,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         LinearLayout p = new LinearLayout(this);
         p.setOrientation(LinearLayout.VERTICAL);
         p.setPadding(t.dp(14), t.dp(14), t.dp(14), t.dp(14));
-        p.setBackground(t.outlined(Theme.withAlpha(Theme.PANEL_NAVY, 0.75f), Theme.withAlpha(Theme.HOLO_BLUE, 0.35f), 1, Theme.R_PANEL));
+        p.setBackground(t.glass(Theme.R_PANEL, 0.8f));
         p.setClipChildren(false);
         TextView h = t.text(this, Theme.T_CAPTION + 1, Theme.HOLO_BLUE, Theme.FONT_MEDIUM);
         h.setText(title.toUpperCase());

@@ -23,3 +23,6 @@ local.properties
 Thumbs.db
 .idea/
 .vscode/
+
+# Private screenshots and diagnostics captured from an owner device
+qa/device-evidence/

@@ -19,15 +19,15 @@ import tv.calmhome.launcher.data.Prefs;
 public final class Theme {
 
     // ---- Brand colors
-    public static final int DEEP_BLACK = 0xFF06090D;
-    public static final int MIDNIGHT_NAVY = 0xFF0A1220;
-    public static final int PANEL_NAVY = 0xFF101A2B;
-    public static final int ELECTRIC_BLUE = 0xFF2F80FF;
+    public static final int DEEP_BLACK = 0xFF0A0E14;
+    public static final int MIDNIGHT_NAVY = 0xFF182331;
+    public static final int PANEL_NAVY = 0xFF263342;
+    public static final int ELECTRIC_BLUE = 0xFFBFDAEB;
     public static final int PULSE_CYAN = 0xFF35D6FF;
-    public static final int HOLO_BLUE = 0xFF5AA9FF;
-    public static final int SOFT_WHITE = 0xFFF3F7FF;
-    public static final int MUTED_GRAY = 0xFF94A3B8;
-    public static final int BORDER = 0xFF22324A;
+    public static final int HOLO_BLUE = 0xFFABBBC9;
+    public static final int SOFT_WHITE = 0xFFF5F7FA;
+    public static final int MUTED_GRAY = 0xFFBEC8D3;
+    public static final int BORDER = 0xFF768795;
     public static final int SUCCESS = 0xFF28C76F;
     public static final int WARNING = 0xFFF5A623;
     public static final int ERROR = 0xFFFF5C7A;
@@ -54,8 +54,8 @@ public final class Theme {
         dm = c.getResources().getDisplayMetrics();
         scale = p.uiScale();
         int intensity = p.focusIntensity();             // 0 low, 1 medium, 2 high
-        focusScale = new float[]{1.04f, 1.06f, 1.08f}[intensity];
-        glowDp = new float[]{6f, 12f, 18f}[intensity];
+        focusScale = new float[]{1.015f, 1.025f, 1.035f}[intensity];
+        glowDp = new float[]{2f, 4f, 6f}[intensity];
         accent = new float[]{0.55f, 0.8f, 1f}[p.accentIntensity()];
         float systemAnim = Settings.Global.getFloat(c.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
         reducedMotion = p.reducedMotion() || systemAnim == 0f;
@@ -93,7 +93,7 @@ public final class Theme {
     }
 
     public int fadeMs(int normal) {
-        return reducedMotion ? Math.min(normal, 250) : normal;
+        return reducedMotion ? 0 : normal;
     }
 
     public TextView text(Context c, float sp, int color, String family) {
@@ -129,7 +129,12 @@ public final class Theme {
 
     /** Glass panel used over wallpapers: translucent Panel Navy with a hairline border. */
     public GradientDrawable glass(float radiusDp, float opacity) {
-        return outlined(withAlpha(PANEL_NAVY, opacity), withAlpha(BORDER, 0.9f), 1, radiusDp);
+        GradientDrawable surface = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{withAlpha(0xFF637585, opacity), withAlpha(PANEL_NAVY, opacity),
+                        withAlpha(0xFF16212D, Math.min(1f, opacity + .12f))});
+        surface.setCornerRadius(dp(radiusDp));
+        surface.setStroke(Math.max(1, dp(1)), withAlpha(0xFFE0EBF4, .45f));
+        return surface;
     }
 
     public int accentBlue(float base) {

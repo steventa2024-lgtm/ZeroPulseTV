@@ -38,6 +38,7 @@ public class JarvisTests {
         pairingCode();
         signatures();
         json();
+        provider();
         suggestions();
         websocket();
         plaintextRefused();
@@ -102,6 +103,22 @@ public class JarvisTests {
         threw = false;
         try { Json.parse(repeat("[", 100) + repeat("]", 100)); } catch (IllegalArgumentException e) { threw = true; }
         check("json: absurd nesting refused", threw);
+    }
+
+    static void provider() {
+        eq("provider: legacy model name alone never establishes Claude availability", ClaudeCodeStatus.UNKNOWN,
+                ClaudeCodeStatus.fromPayload(Json.map("model", "claude-code")));
+        eq("provider: unrecognized disposition", ClaudeCodeStatus.UNKNOWN,
+                ClaudeCodeStatus.fromPayload(Json.map("provider", Json.map("id", "claude-code", "state", "ok"))));
+        eq("provider: different provider", ClaudeCodeStatus.UNKNOWN,
+                ClaudeCodeStatus.fromPayload(Json.map("provider", Json.map("id", "local", "state", "available"))));
+        String[] states = {"configured", "available", "unavailable", "rate_limited", "approval_required"};
+        ClaudeCodeStatus[] expected = {ClaudeCodeStatus.CONFIGURED, ClaudeCodeStatus.AVAILABLE,
+                ClaudeCodeStatus.UNAVAILABLE, ClaudeCodeStatus.RATE_LIMITED, ClaudeCodeStatus.APPROVAL_REQUIRED};
+        for (int i = 0; i < states.length; i++)
+            eq("provider: " + states[i], expected[i],
+                    ClaudeCodeStatus.fromPayload(Json.map("provider", Json.map("id", "claude-code", "state", states[i]))));
+        check("suggestion: APK install actions are rejected", TvSuggestion.find("[[tv:install:sample.apk]]") == null);
     }
 
     static void suggestions() {

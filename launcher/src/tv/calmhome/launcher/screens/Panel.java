@@ -7,13 +7,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.TextClock;
 import android.widget.TextView;
 
 import tv.calmhome.launcher.data.Apps;
 import tv.calmhome.launcher.data.Prefs;
 import tv.calmhome.launcher.data.WallpaperStage;
-import tv.calmhome.launcher.ui.PulseLogo;
+import tv.calmhome.launcher.ui.Navigation;
 import tv.calmhome.launcher.ui.Theme;
 import tv.calmhome.launcher.ui.Widgets;
 
@@ -39,6 +38,8 @@ public abstract class Panel {
         /** Rebuilds the whole activity (UI scale / focus / accent changes), reopening {@code reopen}. */
         void rebuild(String reopen);
         void openAssistant();
+        void navigate(String tab);
+        void pickApk();
         void toast(String text);
     }
 
@@ -76,6 +77,12 @@ public abstract class Panel {
 
     public void onClosed() { }
 
+    private TextView wallpaperCredit;
+
+    public void updateCredit(String caption) {
+        if (wallpaperCredit != null) wallpaperCredit.setText(caption);
+    }
+
     private View returnFocus;
 
     public void setReturnFocus(View v) {
@@ -111,35 +118,30 @@ public abstract class Panel {
         LinearLayout col = new LinearLayout(c);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setClipChildren(false);
-        col.setPadding(t.safeX(), t.safeY(), t.safeX(), 0);
+        col.setPadding(t.safeX(), t.safeY(), t.safeX(), t.safeY());
 
-        FrameLayout header = new FrameLayout(c);
-        LinearLayout left = new LinearLayout(c);
-        left.setGravity(Gravity.CENTER_VERTICAL);
-        left.addView(new PulseLogo(c, t.dp(26)));
-        View sep = new View(c);
-        sep.setBackgroundColor(Theme.withAlpha(Theme.SOFT_WHITE, 0.22f));
-        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(Math.max(1, t.dp(1)), t.dp(22));
-        sl.leftMargin = t.dp(14);
-        sl.rightMargin = t.dp(16);
-        left.addView(sep, sl);
+        String tab = this instanceof AppsPanel ? "Apps" : this instanceof InputsPanel ? "Inputs" :
+                this instanceof DownloadPage ? "Downloads" : "Settings";
+        col.addView(new Navigation(host, tab), new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
         TextView h = t.text(c, Theme.T_HEADING, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        h.setPadding(0, t.dp(12), 0, 0);
+        if (this instanceof DownloadsPanel) {
+            tv.calmhome.launcher.ui.Glyph icon = new tv.calmhome.launcher.ui.Glyph(
+                    tv.calmhome.launcher.ui.Glyph.Kind.DOWNLOAD, Theme.SOFT_WHITE);
+            icon.setBounds(0, 0, t.dp(29), t.dp(29));
+            h.setCompoundDrawablesRelative(icon, null, null, null);
+            h.setCompoundDrawablePadding(t.dp(10));
+            t.style(h, 32, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        }
         h.setText(title);
-        left.addView(h);
-        header.addView(left, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.START | Gravity.CENTER_VERTICAL));
-        TextClock clock = new TextClock(c);
-        clock.setFormat12Hour("h:mm");
-        clock.setFormat24Hour("H:mm");
-        t.style(clock, 26, Theme.SOFT_WHITE, Theme.FONT_LIGHT);
-        clock.setGravity(Gravity.END);
-        clock.setSingleLine(true);
-        // Fixed width: content-sized clocks were clipped on this TV after the time changed.
-        header.addView(clock, new FrameLayout.LayoutParams(t.dp(140), Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
-        col.addView(header, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
+        col.addView(h);
 
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
-        clp.topMargin = t.dp(22);
+        clp.topMargin = t.dp(6);
         col.addView(content, clp);
+        wallpaperCredit = t.text(c, Theme.T_CAPTION, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
+        if (host.stage().current() != null) updateCredit(host.stage().current().caption());
+        col.addView(wallpaperCredit);
         f.addView(col, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         return f;
     }

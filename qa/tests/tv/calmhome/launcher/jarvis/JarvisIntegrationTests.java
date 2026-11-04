@@ -81,6 +81,8 @@ public class JarvisIntegrationTests {
         final List<String> replies = new CopyOnWriteArrayList<>();
         volatile JarvisSession.State last;
         volatile String lastDetail = "";
+        volatile ClaudeCodeStatus provider;
+        public void onProvider(ClaudeCodeStatus next) { provider = next; }
         public void onState(JarvisSession.State s, String detail) {
             last = s;
             lastDetail = detail;
@@ -110,7 +112,7 @@ public class JarvisIntegrationTests {
 
     public static void main(String[] args) throws Exception {
         File gatewayDir = new File(args[0]);
-        ProcessBuilder pb = new ProcessBuilder("cmd", "/c", "npx", "tsx", "test/tvlink-harness.ts").directory(gatewayDir);
+        ProcessBuilder pb = new ProcessBuilder("node", "--import", "tsx", "test/tvlink-harness.ts").directory(gatewayDir);
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
         harness = pb.start();
         harnessIn = new OutputStreamWriter(harness.getOutputStream(), StandardCharsets.UTF_8);
@@ -156,6 +158,9 @@ public class JarvisIntegrationTests {
         check("pairing: connects after approval", rec.await(JarvisSession.State.CONNECTED, 10000));
         check("pairing: pin saved = gateway certificate SHA-256", store.pairing != null && fingerprint.equals(store.pairing.fingerprint));
         check("pairing: device token issued and stored", store.pairing != null && store.pairing.token != null && store.pairing.token.length() > 20);
+
+        session.sync();
+        check("provider: existing gateway has no explicit Claude capability", rec.provider == ClaudeCodeStatus.UNKNOWN);
 
         // 3. Chat with the real agent service.
         session.send("Status report");
@@ -211,6 +216,13 @@ public class JarvisIntegrationTests {
         session.forget();
         check("forget: TV back to Not configured", rec.await(JarvisSession.State.NOT_CONFIGURED, 8000));
         check("forget: device removed on the PC", Json.num(cmd("devices"), "devices", -1) == 0);
+        session.pair("127.0.0.1", port, Json.str(cmd("invite"), "code"));
+        check("cancel: pending PC invitation", rec.await(JarvisSession.State.WAITING_APPROVAL, 8000));
+        session.cancelPairing();
+        check("cancel: local mode restored", rec.await(JarvisSession.State.NOT_CONFIGURED, 3000));
+        cmd("reject");
+        Thread.sleep(JarvisSession.APPROVAL_POLL_MS + 350L);
+        check("cancel: no saved credentials or reconnect", store.pairing == null && rec.last == JarvisSession.State.NOT_CONFIGURED);
         session.shutdown();
 
         // 9. Bounded timeout: a PC that accepts TCP but never answers.

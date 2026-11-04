@@ -10,6 +10,7 @@ One Android app (`tv.calmhome.launcher`), Java 8 language level, Android framewo
 | `jarvis/` | Pure-Java JARVIS client: JSON, pairing code, pinned TLS trust, WebSocket client, gateway protocol, session/retry policy, TV-action suggestions (unit-testable on a PC) |
 | `core/` | Pure logic: dock list, greeting, wallpaper catalogue, typed command parser |
 | `data/` | Preferences, installed apps, TV inputs, wallpaper decoding with bitmap reuse |
+| `downloads/` | Private SQLite history, persistent Android jobs, bounded HTTPS transfers, APK inspection and PackageInstaller sessions |
 | `ui/` | Theme tokens, logo, glyph icons, shared widgets |
 
 Design rules:
@@ -20,5 +21,5 @@ Design rules:
 - **No privileged access.** Apps are launched with their launch intents; inputs are switched with the public
   TV input framework intents.
 - **Memory.** Two reusable 1920×1080 wallpaper bitmaps; no per-rotation allocation.
-- **Saved data.** One preferences file for launcher settings (`calmhome`, kept from version 1.0 so updates keep
-  the dock), one for the JARVIS pairing (`zp_jarvis`), both excluded from backup.
+- **Saved data.** The existing `calmhome` and `zp_jarvis` stores retain settings, dock and pairing. The optional downloader has a separate source catalog, private database and APK directory.
+- **Rendering.** A single reusable API 31 RenderEffect softens the two wallpaper views behind open screens. The text, navigation and content render separately. API 26–30 and software rendering use the same translucent gradients without blur. Wallpaper decoding remains off the UI thread. Focus uses short transform animations and honors reduced motion. Hardware frame/memory numbers must be measured on the candidate.

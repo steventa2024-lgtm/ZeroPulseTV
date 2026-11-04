@@ -1,63 +1,45 @@
 # Building ZeroPulse TV
 
-ZeroPulse TV is built with the plain Android SDK command-line tools: no Gradle, no libraries. The scripts are
-PowerShell (Windows). The same steps work on other systems with the equivalent commands.
+The launcher builds with JDK 17, Android SDK Platform 34 and Build-Tools. Both pipelines compile Java 8 bytecode for API 26+, package the offline assets, align the APK, sign it, and verify the certificate. The package is `tv.calmhome.launcher`. A development signature works on a fresh emulator. An in-place TV update requires the installed app's signing certificate and a higher version code.
 
-## 1. Toolchain
+## macOS, including Apple Silicon
 
-Create `tools/` next to `launcher/` with this layout:
+Install a native JDK 17 and Android SDK Command-line Tools through Android Studio. In SDK Manager, install Platform 34, Build-Tools 34.0.0, and Platform-Tools. If your SDK is outside the standard location set `ANDROID_HOME`. Set `BUILD_TOOLS_VERSION` to select a different installed revision. The scripts check 34.0.0, 36.0.0 and the project's legacy directory by default.
 
-```
-tools/
-  jdk/                                   JDK 17 (e.g. Eclipse Temurin 17)
-  sdk/build-tools/android-14/            Android SDK Build-Tools 34 (aapt2, d8, zipalign, apksigner)
-  sdk/platforms/android-34/android.jar   Android SDK Platform 34
-```
-
-Install Build-Tools and the platform with Google's `sdkmanager` (accept the Android SDK licence):
-
-```
-sdkmanager --sdk_root=tools\sdk "build-tools;34.0.0" "platforms;android-34"
+```sh
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+bash qa/run-tests.sh
+bash launcher/build.sh --development --output "$PWD/launcher/ZeroPulseTV-dev.apk"
 ```
 
-`sdkmanager` installs Build-Tools 34.0.0 as `build-tools\34.0.0`; rename or copy it to
-`build-tools\android-14`, or adjust the path at the top of `launcher\build.ps1`.
+`--development` generates a disposable signing key with each build. For repeated emulator updates, generate a separate test keystore once and pass it with `--keystore`. For an owner-signed candidate, supply the original keystore outside the repository. The script prompts for its password with input hidden, or reads `ZP_KEYSTORE_PASS` from the environment if already set. The key and keystore passwords must match.
 
-## 2. Signing key
-
-Use your **own** release key. Create one once and keep it and its password outside this repository:
-
-```
-tools\jdk\bin\keytool -genkeypair -keystore C:\keys\zeropulse-release.jks -alias zeropulse ^
-  -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Your Name"
+```sh
+bash launcher/build.sh --keystore "/path/to/owner-key.jks" --output "$PWD/launcher/ZeroPulseTV.apk"
 ```
 
-An APK signed with your key cannot update the official release, and the official release cannot update yours.
+The build prints the signer and SHA-256. It writes generated classes and intermediate APKs in a unique temporary directory and removes them on exit. No Google services, Gradle daemon, or connected TV is required to build.
 
-## 3. Build
+## Windows
 
+Point `-Tools` at a directory containing `jdk\bin\javac.exe`, `sdk\platforms\android-34\android.jar`, and `sdk\build-tools\34.0.0\aapt2.exe`. The original `tools\` layout and legacy `android-14\` build-tools directory still work. The script also recognizes 36.0.0 and the `BUILD_TOOLS_VERSION` override. Use a local key outside the checkout. To create a dedicated development key, run JDK 17 `keytool -genkeypair -keystore C:\keys\tv-dev.p12 -alias tv-dev -keyalg RSA -keysize 2048` and follow its prompts.
+
+```powershell
+$toolchain = "C:\path\to\tools"
+pwsh -File qa\run-tests.ps1 -Tools $toolchain
+$prompt = Read-Host 'Keystore password' -AsSecureString
+$env:ZP_KEYSTORE_PASS = [Net.NetworkCredential]::new('', $prompt).Password
+try {
+    & .\launcher\build.ps1 -Tools $toolchain -Keystore C:\keys\tv-dev.p12 -OutApk .\launcher\ZeroPulseTV-dev.apk
+} finally {
+    Remove-Item Env:\ZP_KEYSTORE_PASS
+}
+Get-FileHash .\launcher\ZeroPulseTV-dev.apk -Algorithm SHA256
 ```
-$env:ZP_KEYSTORE_PASS = "<your keystore password>"
-powershell -ExecutionPolicy Bypass -File launcher\build.ps1 -Keystore C:\keys\zeropulse-release.jks
-```
 
-Output: `launcher\ZeroPulseTV.apk`. The About screen shows the build time and the git commit of your checkout.
+## QA and device updates
 
-## 4. Tests
+The runners execute the core, JARVIS and downloader JVM suites and compile the entire app against the Android framework. Install Node.js 22+ to include the provider and website tests. A compatible OpenPulse checkout with its dependencies installed enables the loopback TLS pairing and revocation suite. Pass its path as the sole argument to `bash qa/run-tests.sh` or as `-OpenPulse` to the PowerShell runner. The independent public website contract also runs with `node --check website/app.js`, `node --test website/test.mjs` and `node website/build.mjs` from the repository root.
 
-```
-powershell -ExecutionPolicy Bypass -File qa\run-tests.ps1
-```
-
-Runs the JVM unit tests (dock, greeting, wallpaper catalogue, command parser; JARVIS JSON, pairing code,
-certificate pinning, P-256 signatures, WebSocket framing, plaintext-downgrade refusal, no logging of secrets)
-and a `javac -Xlint:all` pass against `android.jar`.
-
-`-OpenPulse <checkout>` additionally runs the TV's JARVIS client against a real OpenPulse TV link on this PC
-(needs an OpenPulse checkout that includes the TV link, Node.js and its dependencies).
-
-## Reproducing the official APK
-
-Building tag `v2.1.0-beta.1` produces an APK whose code, resources, manifest and wallpapers are identical to
-the official release; only the build timestamp in `BuildInfo` and the signature differ. Compare with
-`dexdump` and `unzip -p` as described in the release notes.
+Before a physical TV update, record `adb devices -l`, the selected serial, model, Android version, existing package version, and certificate. Compare with `aapt dump badging` and `apksigner verify --verbose --print-certs` on the candidate. Confirm owner approval before running `adb -s SERIAL install -r CANDIDATE.apk`. A signing mismatch or downgrade requires stopping. Preserve app data and current HOME ownership. Testing a development candidate on a disposable TV AVD requires a separate Android TV system image and emulator.

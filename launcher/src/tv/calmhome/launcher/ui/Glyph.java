@@ -12,7 +12,7 @@ import android.graphics.drawable.Drawable;
 /** Original ZeroPulse line icons, drawn on a 24-unit grid with a 1.8-unit stroke. */
 public class Glyph extends Drawable {
 
-    public enum Kind { GRID, INPUTS, TV, HDMI, ASSISTANT, IMAGE, GEAR, INFO, HOME, PLAY, DOCK, SHORTCUT }
+    public enum Kind { GRID, INPUTS, TV, HDMI, ASSISTANT, IMAGE, GEAR, INFO, HOME, PLAY, DOCK, SHORTCUT, DOWNLOAD }
 
     private final Kind kind;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -42,6 +42,12 @@ public class Glyph extends Drawable {
         p.setStrokeWidth(1.8f);
         path.reset();
         switch (kind) {
+            case DOWNLOAD:
+                path.moveTo(12, 3); path.lineTo(12, 15); path.lineTo(7, 10);
+                path.moveTo(12, 15); path.lineTo(17, 10);
+                path.moveTo(4, 15); path.lineTo(4, 20); path.lineTo(20, 20); path.lineTo(20, 15);
+                c.drawPath(path, p);
+                break;
             case GRID:
                 for (int i = 0; i < 4; i++) {
                     float x = 4 + (i % 2) * 9, y = 4 + (i / 2) * 9;

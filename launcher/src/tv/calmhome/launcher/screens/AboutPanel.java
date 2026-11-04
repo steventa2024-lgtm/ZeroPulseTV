@@ -33,7 +33,7 @@ public class AboutPanel extends Panel {
         brand.setGravity(Gravity.CENTER);
         brand.addView(new PulseLogo(c, t.dp(54)));
         TextView powered = t.text(c, Theme.T_TAGLINE, Theme.HOLO_BLUE, Theme.FONT_REGULAR);
-        powered.setText("Powered by ZeroPulse AI");
+        powered.setText("Android TV launcher");
         powered.setLetterSpacing(0.08f);
         LinearLayout.LayoutParams pl = w.wrap();
         pl.topMargin = t.dp(16);
@@ -60,7 +60,7 @@ public class AboutPanel extends Panel {
         try {
             PackageInfo pi = c.getPackageManager().getPackageInfo(c.getPackageName(), 0);
             version = pi.versionName;
-            code = pi.getLongVersionCode();
+            code = packageVersion(pi);
         } catch (Exception ignored) { }
         WallpaperCatalog cat = host.stage().catalog();
         int photos = 0, originals = 0;
@@ -94,6 +94,11 @@ public class AboutPanel extends Panel {
 
     private void add(View row) {
         list.addView(row, Rows.full(t));
+    }
+
+    @SuppressWarnings("deprecation")
+    private static long packageVersion(PackageInfo p) {
+        return Build.VERSION.SDK_INT >= 28 ? p.getLongVersionCode() : p.versionCode;
     }
 
     private void section(String s) {

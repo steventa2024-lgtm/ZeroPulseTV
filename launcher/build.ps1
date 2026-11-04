@@ -23,7 +23,8 @@ $src   = $PSScriptRoot
 $tools = (Resolve-Path $Tools).Path
 $env:JAVA_HOME = Join-Path $tools "jdk"
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-$bt  = Join-Path $tools "sdk\build-tools\android-14"
+. (Join-Path $PSScriptRoot "toolchain.ps1")
+$bt = Get-BuildTools $tools
 $jar = Join-Path $tools "sdk\platforms\android-34\android.jar"
 $out = Join-Path $src "build"
 foreach ($need in @("$env:JAVA_HOME\bin\javac.exe", "$bt\aapt2.exe", "$bt\d8.bat", "$bt\apksigner.bat", $jar)) {
@@ -38,7 +39,7 @@ function Run([string]$exe, [string[]]$a) {
     if ($LASTEXITCODE -ne 0) { throw "$exe failed ($LASTEXITCODE)" }
 }
 
-if (Test-Path $out) { Remove-Item -Recurse -Force $out }
+if (Test-Path $out) { Clear-BuildDirectory $src $out }
 New-Item -ItemType Directory -Force "$out\classes" | Out-Null
 
 "== aapt2 compile + link (manifest + resources)"

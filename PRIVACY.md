@@ -8,6 +8,8 @@ third-party libraries.
 | Data | Where | Leaves the TV? |
 |---|---|---|
 | Dock order and settings | App-private storage | No |
+| Saved developer links, local shortcut codes and optional checksums | App-private catalog | The requested URL is sent to its host on download |
+| Transfer history, exact requested/final URL, APK metadata, hash and files | Private database and files excluded from backup | Only the selected file is passed to the Android installer |
 | JARVIS pairing: PC address, PC certificate fingerprint, device token (encrypted with an Android Keystore key) | App-private storage `zp_jarvis.xml` | No |
 | JARVIS device key | Android Keystore (not exportable) | No (only signatures are sent, to your PC) |
 
@@ -23,7 +25,7 @@ None of this is sent anywhere, except the device name, which is sent to your own
 
 ## Network
 
-Without JARVIS, the app makes **no network connections at all**.
+Home, wallpapers and shortcut lookup work offline. When you select Start download, Android connects to the HTTPS source and any permitted HTTPS redirects. Those hosts receive the request and see the TV’s network address. Signed URLs may contain access parameters. Manage Downloads → Remove file and history removes the saved record and staged APK. Remove the saved catalog source separately if needed. A local file import grants read access only to the selected document.
 
 With JARVIS paired, and only while the Assistant screen is open, the TV connects to the PC address you entered
 (TLS 1.3, certificate pinned). It sends the messages you type and receives the replies. Your conversations

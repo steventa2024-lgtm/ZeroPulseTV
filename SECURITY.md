@@ -28,15 +28,15 @@ changing it would turn every update into a separate app and lose users' settings
 
 ## What the app can and cannot do
 
-- Permissions: `INTERNET` only. No storage, location, microphone, camera, contacts or accessibility access.
-- It launches apps and switches inputs through public Android APIs. It does not install, uninstall, disable
-  or modify other apps or system settings.
-- It makes **no network connections** except the optional JARVIS link, and only while the Assistant screen is
-  open, to the IPv4 address you entered when pairing.
+- The private v3 beta requests `INTERNET`, `RECEIVE_BOOT_COMPLETED` for persisted Android download jobs, and `REQUEST_INSTALL_PACKAGES` for the system installer. Public v2.1 requests only `INTERNET`.
+- The TV can launch apps, switch inputs, and stage an inspected APK when the owner selects Install. Android controls permission to install from this source and prompts for installation. JARVIS has no method for downloading or installing APKs.
+- Network traffic originates from an explicit APK download or the optional JARVIS connection. Home and its wallpaper rotation work offline.
 - Cleartext network traffic is disabled in the manifest; the JARVIS client only speaks TLS 1.3.
 - App data is excluded from Android cloud backup and device-to-device transfer.
 
 ## JARVIS link security model
+
+The owner-operated PC connector and its provider authorization limits are documented in the JARVIS guide.
 
 Details: [docs/JARVIS.md](docs/JARVIS.md).
 

@@ -27,7 +27,7 @@ On the PC (OpenPulse with the TV link):
 
 On the TV:
 
-3. Open **Assistant → Connect to JARVIS** and enter the PC's IPv4 address, the port and the code.
+3. Open **Assistant → Connect your PC** and enter the PC's IPv4 address, the port and the code.
 4. The TV checks the PC's certificate against the code and shows **Waiting for approval — TV code XXXX-XXXX**.
 5. On the PC, approve the request whose TV code matches (`openpulse tv invite` asks; or
    `openpulse devices approve <requestId>`).
@@ -62,3 +62,53 @@ On the TV:
 
 Implementation: `launcher/src/tv/calmhome/launcher/jarvis/` (protocol, pinning, WebSocket, session policy) and
 `launcher/src/tv/calmhome/launcher/assistant/` (Keystore storage, UI). Tests: `qa/tests/tv/calmhome/launcher/jarvis/`.
+
+## Beta 3 PC connection
+
+Open **Assistant → Connect your PC**. Make an invitation with the compatible OpenPulse TV link on the PC, enter its address, port and invite code, then compare the TV code before approving the device on the PC. Android Keystore protects the device key and pairing token. Forgetting a PC removes the local credentials and requests remote removal when connected. An offline PC can remove the device later. Local TV commands work during setup, disconnection and provider outages.
+
+The PC pairing row shows the saved relationship. The gateway row shows the current connection and whether the PC denied access. A valid pinned connection establishes the identity of the gateway. Only that gateway can report the optional provider capability. A legacy PC can continue its usual chat while the Claude Code row reads **Not reported**.
+
+| Claude Code row | Meaning |
+|---|---|
+| Requires PC link | No authenticated connection to query |
+| Not reported | This gateway supplied no recognized Claude Code status |
+| Configured on PC | The owner configured the adapter. A model call has yet to succeed |
+| Available | The last tool-free model call returned text successfully |
+| Unavailable | Executable, provider authentication, model service or result failed |
+| Rate limit reached | The CLI reported a provider HTTP 429 |
+| Subscription relay disabled | API access was not configured. The subscription relay is gated |
+
+### Owner-operated adapter
+
+The optional module in **gateway/claude-code-provider.mjs** exports a PC-only model adapter for a compatible private OpenPulse gateway. It opens no network listener. This beta does not ship OpenPulse or a hosted service. Install the unmodified native Claude Code CLI on the PC. For the owner's normal personal sessions, use Anthropic's own CLI/browser sign-in on the PC. The adapter supports **owner-billed API key mode only**. A signed-in CLI or a Pro/Max account alone does not enable it. The beta has no override to relay subscription credentials.
+
+Anthropic permits a user to sign into its unmodified client. Developers integrating Claude into their own apps should use API credentials or a supported cloud provider. Third-party subscription login or routing needs prior authorization for this design. The PC owner must confirm any approval with Anthropic before enabling a future subscription-backed connector. [Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance) · [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview) · [PC authentication](https://code.claude.com/docs/en/authentication)
+
+On the PC, select a dedicated TV-link runtime with model ID **zeropulse-tv/claude-code**. Its existing **tv.chat.send** continues to enforce device pairing, rate limits, isolation of per-TV sessions and the empty tool set. The gateway integrator can use the following wiring at the runtime factory and existing authenticated status handler. Load the adapter from its local file on the owner's PC. Supply the executable path and owner-billed API key from the gateway's private process configuration. Passwords, CLI sessions, API keys and the owner's gateway management token must never be sent to the TV.
+
+~~~js
+const provider = new ClaudeCodeProvider({
+  executable: process.env.ZEROPULSE_CLAUDE_EXE,
+  apiKey: process.env.ZEROPULSE_CLAUDE_API_KEY
+});
+const modelFactory = (ref, config) =>
+  ref.provider === "zeropulse-tv" && ref.model === "claude-code"
+    ? provider.asTvModel()
+    : createModel(ref, config);
+
+// Pass modelFactory to Runtime.create. Retain the gateway's original ACLs and chat handlers.
+const originalStatus = TV_METHODS["tv.status"];
+TV_METHODS["tv.status"] = async (rt, params, conn) => {
+  const status = await originalStatus(rt, params, conn);
+  return status.model === "zeropulse-tv/claude-code"
+    ? { ...status, ...await provider.status() }
+    : status;
+};
+~~~
+
+The model accepts only user/assistant text from a tool-free TV session. It starts a one-shot CLI request with restricted mode, zero tools, no MCP servers, no slash commands, an isolated working/config directory, no transcript retention and no shell interpolation. The runner passes a PC-supplied API key to that child. Model output stays text. Existing allowlisted TV suggestions still need the viewer to select them. Limits include up to 2,000 characters per question and a 60-second subprocess timeout. An incompatible CLI fails closed. [CLI reference](https://code.claude.com/docs/en/cli-reference) · [Result error fields](https://code.claude.com/docs/en/agent-sdk/typescript) · [API error statuses](https://platform.claude.com/docs/en/api/errors)
+
+**Validation.** Run **node --test qa/tests/claude-code-provider.test.mjs** for credential-free adapter checks. Setting **ZEROPULSE_TEST_CLAUDE_EXE** to a local native CLI path also runs a loopback API fixture with a synthetic key. The existing **JarvisIntegrationTests** suite uses a compatible private gateway with ephemeral credentials and a scripted model. These checks do not authenticate an Anthropic subscription.
+
+**Recovery.** If the provider fails, continue using local commands or restore the gateway's previous model factory and restart the PC's TV link. If the pin changes, compare a fresh invitation and re-verify. If you suspect unauthorized TV access, revoke the TV on the PC, forget it on the TV, and rotate the PC-side API key separately if it was exposed.

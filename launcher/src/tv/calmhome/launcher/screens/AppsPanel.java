@@ -61,7 +61,8 @@ public class AppsPanel extends Panel {
         grid.removeAllViews();
         List<String> all = apps.all();
         List<String> dock = prefs.dock();
-        subtitle.setText("Installed on this TV · " + all.size() + " apps · long-press OK for options");
+        subtitle.setText(all.isEmpty() ? "No launchable apps found on this TV." :
+                all.size() + " installed apps   ·   Select to open   ·   Hold OK to manage your dock");
         float availDp = (t.screenW() - 2f * t.safeX() - t.dp(16)) / c.getResources().getDisplayMetrics().density / t.scale;
         int gapDp = 18;
         int tileW = Math.round((availDp - (COLUMNS - 1) * gapDp) / COLUMNS);

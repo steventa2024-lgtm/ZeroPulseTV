@@ -72,7 +72,7 @@ public final class Widgets {
     public LinearLayout appTile(Drawable banner, Drawable icon, String name, int wDp, int hDp, boolean labelAlways,
                                 View.OnClickListener click, View.OnLongClickListener longClick) {
         FrameLayout card = new FrameLayout(c);
-        card.setBackground(t.rounded(Theme.PANEL_NAVY, Theme.R_TILE));
+        card.setBackground(t.glass(Theme.R_TILE, .86f));
         if (banner != null) {
             ImageView iv = new ImageView(c);
             iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -131,7 +131,7 @@ public final class Widgets {
         chip.setGravity(Gravity.CENTER);
         chip.setPadding(t.dp(16), 0, t.dp(16), 0);
         chip.setBackground(t.glass(Theme.R_CHIP, 0.62f));
-        final Glyph g = new Glyph(icon, accent ? Theme.PULSE_CYAN : Theme.SOFT_WHITE);
+        final Glyph g = new Glyph(icon, Theme.SOFT_WHITE);
         ImageView iv = new ImageView(c);
         iv.setImageDrawable(g);
         chip.addView(iv, new LinearLayout.LayoutParams(t.dp(18), t.dp(18)));
@@ -164,15 +164,16 @@ public final class Widgets {
                 current ? Theme.FONT_MEDIUM : Theme.FONT_REGULAR);
         v.setText(text);
         v.setGravity(Gravity.CENTER);
-        v.setPadding(t.dp(16), t.dp(8), t.dp(16), t.dp(8));
+        v.setPadding(t.dp(8), t.dp(7), t.dp(8), t.dp(7));
+        v.setSingleLine(true);
         v.setFocusable(true);
         v.setClickable(true);
         v.setContentDescription(text);
-        final Drawable idle = current ? t.rounded(Theme.withAlpha(Theme.SOFT_WHITE, 0.16f), Theme.R_PILL) : null;
+        final Drawable idle = current ? t.glass(Theme.R_PILL, .82f) : null;
         v.setBackground(idle);
         v.setOnClickListener(click);
         v.setOnFocusChangeListener((view, has) -> {
-            view.setBackground(has ? t.rounded(Theme.ELECTRIC_BLUE, Theme.R_PILL) : idle);
+            view.setBackground(has ? t.outlined(0xEE47596B, Theme.ELECTRIC_BLUE, 2, Theme.R_PILL) : idle);
             v.setTextColor(has || current ? Theme.SOFT_WHITE : Theme.withAlpha(Theme.SOFT_WHITE, 0.82f));
         });
         return v;

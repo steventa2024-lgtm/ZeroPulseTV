@@ -1,0 +1,60 @@
+name: v3 Android TV emulator
+on:
+  push:
+    branches: [feat/zeropulsetv-v3-glass-downloader-jarvis-20261103]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tv-emulator:
+    if: github.ref == 'refs/heads/feat/zeropulsetv-v3-glass-downloader-jarvis-20261103'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      BUILD_TOOLS_VERSION: 36.0.0
+      EMU: emulator-5562
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build development launcher and instrumentation with one temporary test key
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          export ZP_KEYSTORE_PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$ZP_KEYSTORE_PASS"
+          keytool -genkeypair -storetype PKCS12 -keystore "$RUNNER_TEMP/emulator.p12" \
+            -storepass:env ZP_KEYSTORE_PASS -keypass:env ZP_KEYSTORE_PASS -alias fixture \
+            -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=Ephemeral ZeroPulse Emulator'
+          bash launcher/build.sh --keystore "$RUNNER_TEMP/emulator.p12" --output "$RUNNER_TEMP/launcher.apk"
+          python3 qa/device/downloads/build.py --sdk "$ANDROID_HOME" --jdk "$JAVA_HOME" \
+            --build-tools "$BUILD_TOOLS_VERSION" --keystore "$RUNNER_TEMP/emulator.p12" --output "$RUNNER_TEMP/fixture-qa.apk"
+      - name: Provision disposable Android TV under preaccepted runner SDK licenses
+        run: |
+          sdkmanager --sdk_root="$ANDROID_HOME" "emulator" "system-images;android-34;android-tv;x86" </dev/null
+          test -x "$ANDROID_HOME/emulator/emulator"
+          test -d "$ANDROID_HOME/system-images/android-34/android-tv/x86"
+          test -c /dev/kvm
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          printf 'no\n' | avdmanager create avd -n zp-ci-tv -k 'system-images;android-34;android-tv;x86' -d tv_1080p
+          mkdir -p "$RUNNER_TEMP/emulator-evidence"
+          "$ANDROID_HOME/emulator/emulator" -avd zp-ci-tv -port 5562 -no-window -no-snapshot -no-audio \
+            -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator-evidence/boot.txt" 2>&1 &
+          timeout 300 bash -c 'until [[ $(adb -s "$EMU" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r") == 1 ]]; do sleep 2; done'
+          test "$(adb -s "$EMU" shell getprop ro.kernel.qemu | tr -d '\r')" = 1
+          adb -s "$EMU" shell wm dismiss-keyguard
+      - name: Test TV navigation, transfer, reboot recovery and Android install callbacks
+        run: |
+          adb -s "$EMU" install "$RUNNER_TEMP/launcher.apk"
+          adb -s "$EMU" install "$RUNNER_TEMP/fixture-qa.apk"
+          python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-TV-emulator-only-${{ github.run_id }}
+          path: ${{ runner.temp }}/emulator-evidence
+          retention-days: 5
+          if-no-files-found: ignore

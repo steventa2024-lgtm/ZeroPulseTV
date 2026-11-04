@@ -3,6 +3,7 @@
 
 # Build output and binaries (APKs are published as GitHub Release assets, not in Git)
 launcher/build/
+launcher/build-private/
 *.apk
 *.idsig
 *.aab

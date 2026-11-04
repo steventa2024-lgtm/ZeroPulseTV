@@ -38,6 +38,10 @@ public final class WallpaperStage {
     private final Context c;
     private final Prefs prefs;
     private final ImageView front, back;   // swapped on every change
+    private final ImageView frostedView;
+    private final WallpaperFrost filter = new WallpaperFrost();
+    private boolean frostRequested, disposed;
+    private String cachedFile, pendingFile;
     private final Listener listener;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -55,11 +59,13 @@ public final class WallpaperStage {
         }
     };
 
-    public WallpaperStage(Context c, Prefs prefs, ImageView a, ImageView b, Listener l) {
+    public WallpaperStage(Context c, Prefs prefs, ImageView a, ImageView b, ImageView frostedView, Listener l) {
         this.c = c;
         this.prefs = prefs;
         this.front = a;
         this.back = b;
+        this.frostedView = frostedView;
+        frostedView.setVisibility(ImageView.INVISIBLE);
         this.listener = l;
         this.catalog = WallpaperCatalog.parse(readLines("wallpapers/credits.tsv"));
         a.setAlpha(0f);
@@ -78,22 +84,32 @@ public final class WallpaperStage {
         fadeMs = ms;
     }
 
-    /** Blur only the two wallpaper layers while reading a panel. Text and cards stay sharp. */
+    /** Keep Home sharp. Panels composite a small prefiltered bitmap without a full-screen GPU effect. */
     public void setFrosted(boolean enabled) {
-        if (android.os.Build.VERSION.SDK_INT >= 31 && front.isHardwareAccelerated()) {
-            WallpaperFrost.apply(front, back, enabled);
-        }
+        frostRequested = enabled;
+        updateFrost();
     }
 
-    @android.annotation.TargetApi(31)
-    private static final class WallpaperFrost {
-        private static final android.graphics.RenderEffect EFFECT = android.graphics.RenderEffect.createBlurEffect(
-                5f, 5f, android.graphics.Shader.TileMode.CLAMP);
-
-        static void apply(ImageView front, ImageView back, boolean enabled) {
-            front.setRenderEffect(enabled ? EFFECT : null);
-            back.setRenderEffect(enabled ? EFFECT : null);
-        }
+    private void updateFrost() {
+        String file = current == null ? null : current.file;
+        boolean ready = frostRequested && file != null && file.equals(cachedFile);
+        frostedView.setVisibility(ready ? ImageView.VISIBLE : ImageView.INVISIBLE);
+        front.setVisibility(ready ? ImageView.INVISIBLE : ImageView.VISIBLE);
+        back.setVisibility(ready ? ImageView.INVISIBLE : ImageView.VISIBLE);
+        if (disposed || !frostRequested || ready || file == null || file.equals(pendingFile)) return;
+        pendingFile = file;
+        io.execute(() -> {
+            Bitmap small = decode("wallpapers/" + file, null, 8);
+            if (small != null) filter.soften(small);
+            ui.post(() -> {
+                if (disposed || !file.equals(pendingFile)) return;
+                pendingFile = null;
+                if (small == null || current == null || !file.equals(current.file)) return;
+                cachedFile = file;
+                frostedView.setImageBitmap(small);
+                updateFrost();
+            });
+        });
     }
 
     /** Begins (or resumes) showing wallpapers; call from onStart. */
@@ -115,6 +131,7 @@ public final class WallpaperStage {
     }
 
     public void shutdown() {
+        disposed = true;
         stop();
         io.shutdownNow();
     }
@@ -169,6 +186,7 @@ public final class WallpaperStage {
         onScreen = bmp;
         showing = in;
         current = e;
+        updateFrost();
         int ms = animate ? fadeMs : Math.min(fadeMs, 300);
         in.animate().alpha(1f).setDuration(ms).withLayer().start();
         if (out != null) {

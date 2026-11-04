@@ -193,7 +193,9 @@ public class MainActivity extends Activity implements Panel.Host {
         ImageView wallA = wallpaperView(), wallB = wallpaperView();
         root.addView(wallA, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         root.addView(wallB, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
-        stage = new WallpaperStage(this, prefs, wallA, wallB, this::onWallpaper);
+        ImageView frost = wallpaperView();
+        root.addView(frost, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+        stage = new WallpaperStage(this, prefs, wallA, wallB, frost, this::onWallpaper);
         stage.setFadeMs(theme.fadeMs(1500));
 
         dim = new View(this);

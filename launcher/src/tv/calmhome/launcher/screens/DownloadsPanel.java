@@ -18,6 +18,7 @@ import tv.calmhome.launcher.core.SourceEntry;
 import tv.calmhome.launcher.data.SourceCatalog;
 import tv.calmhome.launcher.downloads.DownloadPolicy;
 import tv.calmhome.launcher.ui.Theme;
+import tv.calmhome.launcher.ui.Glyph;
 import tv.calmhome.launcher.ui.Widgets;
 
 /** Native Download Center. Category artwork is local and independent of source availability. */
@@ -34,6 +35,8 @@ public final class DownloadsPanel extends DownloadPage {
         cards.setClipChildren(false);
         body.addView(cards, spaced(12));
         int[] pictures = {R.drawable.category_sports, R.drawable.category_movies, R.drawable.category_anime};
+        int[] ink = {0xE5106B54, 0xE5923F31, 0xE5176174};
+        Glyph.Kind[] symbols = {Glyph.Kind.SPORTS, Glyph.Kind.CINEMA, Glyph.Kind.TORII};
         for (SourceEntry.Category category : SourceEntry.Category.values()) {
             FrameLayout card = new FrameLayout(c);
             card.setBackground(t.glass(Theme.R_PANEL, .94f));
@@ -48,13 +51,28 @@ public final class DownloadsPanel extends DownloadPage {
             LinearLayout labels = new LinearLayout(c);
             labels.setOrientation(LinearLayout.VERTICAL);
             labels.setPadding(t.dp(14), 0, t.dp(12), t.dp(10));
+            ImageView badge = new ImageView(c);
+            badge.setImageDrawable(new Glyph(symbols[category.ordinal()], Theme.SOFT_WHITE));
+            badge.setBackground(t.outlined(ink[category.ordinal()], 0xAADDEBF4, 1, 9));
+            badge.setPadding(t.dp(6), t.dp(6), t.dp(6), t.dp(6));
+            LinearLayout.LayoutParams badgeSize = new LinearLayout.LayoutParams(t.dp(34), t.dp(34));
+            badgeSize.bottomMargin = t.dp(3);
+            labels.addView(badge, badgeSize);
             labels.addView(text(category.title, 23, true));
-            labels.addView(text(category.subtitle + "   ›", Theme.T_LABEL, false));
+            labels.addView(text(category.subtitle, Theme.T_LABEL, false));
             card.addView(labels, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP, Gravity.BOTTOM));
+            TextView chevron = text("›", 23, true);
+            chevron.setGravity(Gravity.CENTER);
+            chevron.setBackground(t.glass(18, .88f));
+            FrameLayout.LayoutParams arrow = new FrameLayout.LayoutParams(t.dp(27), t.dp(27), Gravity.BOTTOM | Gravity.END);
+            arrow.rightMargin = t.dp(12);
+            arrow.bottomMargin = t.dp(10);
+            card.addView(chevron, arrow);
             card.setContentDescription(category.title + ", browse sources");
             w.focusable(card, Theme.R_PANEL, null, true);
+            card.setFocusableInTouchMode(true);
             card.setOnClickListener(v -> host.open(new SourceCategoryPanel(host, category)));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Math.round(t.screenH() * .26f), 1);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Math.round(t.screenH() * .29f), 1);
             if (category.ordinal() > 0) lp.leftMargin = t.dp(9);
             cards.addView(card, lp);
             if (first == null) first = card;
@@ -62,7 +80,7 @@ public final class DownloadsPanel extends DownloadPage {
         LinearLayout bar = new LinearLayout(c);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setBackground(t.glass(Theme.R_PANEL, .88f));
-        bar.setPadding(t.dp(12), t.dp(8), t.dp(12), t.dp(8));
+        bar.setPadding(t.dp(14), t.dp(10), t.dp(14), t.dp(10));
         input = field("Enter a code or HTTPS link", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI, 8192);
         input.setImeOptions(EditorInfo.IME_ACTION_GO);
         input.setOnEditorActionListener((v, id, event) -> { if (id == EditorInfo.IME_ACTION_GO) { go(); return true; } return false; });
@@ -79,11 +97,28 @@ public final class DownloadsPanel extends DownloadPage {
         steps.setGravity(Gravity.CENTER_VERTICAL);
         steps.setPadding(t.dp(14), t.dp(6), t.dp(8), t.dp(6));
         steps.setBackground(t.glass(Theme.R_PANEL, .79f));
-        steps.addView(text("1  Choose source     ›     2  Check APK     ›     3  Approve in Android", Theme.T_LABEL, true),
-                new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
+        step(steps, "1", "Choose source", "Select an app or code");
+        step(steps, "2", "Check APK", "Review file and app details");
+        step(steps, "3", "Approve install", "Confirm with Android");
         steps.addView(action("Manage Downloads", () -> host.open(new DownloadLibraryPanel(host))));
         body.addView(steps, spaced(10));
         return screen("Download Center");
+    }
+
+    private void step(LinearLayout steps, String number, String heading, String summary) {
+        LinearLayout group = new LinearLayout(c);
+        group.setGravity(Gravity.CENTER_VERTICAL);
+        TextView n = text(number, Theme.T_BODY, true);
+        n.setGravity(Gravity.CENTER);
+        n.setBackground(t.glass(18, .8f));
+        group.addView(n, new LinearLayout.LayoutParams(t.dp(25), t.dp(25)));
+        LinearLayout lines = new LinearLayout(c);
+        lines.setOrientation(LinearLayout.VERTICAL);
+        lines.setPadding(t.dp(6), 0, t.dp(4), 0);
+        lines.addView(text(heading, Theme.T_NAV, true));
+        lines.addView(text(summary, Theme.T_CAPTION, false));
+        group.addView(lines);
+        steps.addView(group, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
     }
 
     private void go() {

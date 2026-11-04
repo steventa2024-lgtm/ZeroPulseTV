@@ -40,7 +40,7 @@ function tree() {
   return { xml, nodes, focused: nodes.find(n => n.focused === 'true') };
 }
 async function key(name) {
-  assert.match(shell('dumpsys', 'window', 'windows'), /mCurrentFocus=[^\n]*tv\.calmhome\.launcher\//,
+  assert.match(shell('dumpsys', 'window'), /mCurrentFocus=[^\n]*tv\.calmhome\.launcher\//,
     'Stopped before sending input to a different app');
   shell('input', 'keyevent', name);
   await pause(260);
@@ -112,8 +112,11 @@ try {
   assert.match(launch, /Status: ok/);
   save('startup.txt', launch);
   await pause(650);
-  capture('01-home', 'Downloads');
+  // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
+  if (!tree().focused) await key('DPAD_DOWN');
+  capture('01-home', 'All Apps');
   await open('Downloads');
+  await focus('Live Sports, browse sources');
   capture('02-download-center', 'Download Center');
   for (const [index, category] of ['Live Sports', 'Movies & TV', 'Anime'].entries()) {
     const card = category + ', browse sources';

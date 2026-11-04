@@ -85,6 +85,7 @@ public final class WallpaperStage {
         }
     }
 
+    @android.annotation.TargetApi(31)
     private static final class WallpaperFrost {
         private static final android.graphics.RenderEffect EFFECT = android.graphics.RenderEffect.createBlurEffect(
                 5f, 5f, android.graphics.Shader.TileMode.CLAMP);

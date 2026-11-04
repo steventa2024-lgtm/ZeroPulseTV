@@ -97,7 +97,7 @@ public class AboutPanel extends Panel {
     }
 
     @SuppressWarnings("deprecation")
-    private static long packageVersion(PackageInfo p) {
+    static long packageVersion(PackageInfo p) {
         return Build.VERSION.SDK_INT >= 28 ? p.getLongVersionCode() : p.versionCode;
     }
 

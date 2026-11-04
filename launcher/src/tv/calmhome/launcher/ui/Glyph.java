@@ -12,7 +12,7 @@ import android.graphics.drawable.Drawable;
 /** Original ZeroPulse line icons, drawn on a 24-unit grid with a 1.8-unit stroke. */
 public class Glyph extends Drawable {
 
-    public enum Kind { GRID, INPUTS, TV, HDMI, ASSISTANT, IMAGE, GEAR, INFO, HOME, PLAY, DOCK, SHORTCUT, DOWNLOAD }
+    public enum Kind { GRID, INPUTS, TV, HDMI, ASSISTANT, IMAGE, GEAR, INFO, HOME, PLAY, DOCK, SHORTCUT, DOWNLOAD, SPORTS, CINEMA, TORII }
 
     private final Kind kind;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -47,6 +47,24 @@ public class Glyph extends Drawable {
                 path.moveTo(12, 15); path.lineTo(17, 10);
                 path.moveTo(4, 15); path.lineTo(4, 20); path.lineTo(20, 20); path.lineTo(20, 15);
                 c.drawPath(path, p);
+                break;
+            case SPORTS:
+                c.drawCircle(12, 12, 9, p);
+                path.moveTo(12, 7); path.lineTo(17, 10); path.lineTo(15, 15);
+                path.lineTo(9, 15); path.lineTo(7, 10); path.close();
+                path.moveTo(12, 7); path.lineTo(12, 3); path.moveTo(17, 10); path.lineTo(21, 9);
+                path.moveTo(15, 15); path.lineTo(18, 19); path.moveTo(9, 15); path.lineTo(6, 19);
+                path.moveTo(7, 10); path.lineTo(3, 9); c.drawPath(path, p);
+                break;
+            case CINEMA:
+                r.set(3, 9, 21, 20); c.drawRoundRect(r, 2, 2, p);
+                path.moveTo(3, 9); path.lineTo(3, 6); path.lineTo(20, 3); path.lineTo(21, 6); path.close();
+                path.moveTo(12, 12); path.lineTo(16, 14.5f); path.lineTo(12, 17); path.close(); c.drawPath(path, p);
+                break;
+            case TORII:
+                path.moveTo(2, 5); path.quadTo(12, 8, 22, 5);
+                path.moveTo(4, 10); path.lineTo(20, 10); path.moveTo(7, 6); path.lineTo(6, 21);
+                path.moveTo(17, 6); path.lineTo(18, 21); c.drawPath(path, p);
                 break;
             case GRID:
                 for (int i = 0; i < 4; i++) {

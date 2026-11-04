@@ -297,7 +297,7 @@ public class SettingsPanel extends Panel {
         String version = "?";
         try {
             PackageInfo pi = c.getPackageManager().getPackageInfo(c.getPackageName(), 0);
-            version = pi.versionName + " (" + pi.getLongVersionCode() + ")";
+            version = pi.versionName + " (" + AboutPanel.packageVersion(pi) + ")";
         } catch (Exception ignored) { }
         add(rows.info("ZeroPulse TV", version, Theme.SOFT_WHITE));
         add(rows.info("Device", Build.MANUFACTURER + " " + Build.MODEL + " (" + Build.PRODUCT + ")", Theme.SOFT_WHITE));

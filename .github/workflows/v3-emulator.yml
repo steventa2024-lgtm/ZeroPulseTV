@@ -34,6 +34,9 @@ jobs:
             --build-tools "$BUILD_TOOLS_VERSION" --keystore "$RUNNER_TEMP/emulator.p12" --output "$RUNNER_TEMP/fixture-qa.apk"
       - name: Provision disposable Android TV under preaccepted runner SDK licenses
         run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           sdkmanager --sdk_root="$ANDROID_HOME" "emulator" "system-images;android-34;android-tv;x86" </dev/null
           test -x "$ANDROID_HOME/emulator/emulator"
           test -d "$ANDROID_HOME/system-images/android-34/android-tv/x86"

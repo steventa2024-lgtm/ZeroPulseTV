@@ -119,9 +119,10 @@ class Emulator:
         for _ in range(5):
             t = self.tree()
             options = list(t.iter("node"))
-            toggle = next((n for n in options if n.get("checkable") == "true" and n.get("clickable") == "true"), None)
+            toggles = [n for n in options if n.get("checkable") == "true"]
+            toggle = toggles[0] if len(toggles) == 1 else None
             labels = [n for n in options if n.get("text", "").casefold() in ("allow from this source", "zeropulse tv")]
-            if toggle is not None and self.contains(t, "ZeroPulse TV"):
+            if toggles and self.contains(t, "ZeroPulse TV"):
                 # On a list of apps, find the switch in the ZeroPulse row rather than changing another app.
                 for label in labels:
                     if label.get("text") != "ZeroPulse TV":
@@ -131,6 +132,8 @@ class Emulator:
                             matches = [n for n in row.iter("node") if n.get("checkable") == "true"]
                             if len(matches) == 1:
                                 toggle = matches[0]
+                if toggle is None:
+                    raise RuntimeError("Unable to isolate the ZeroPulse-specific system switch.")
                 if toggle.get("checked") != "true":
                     self.tap(toggle)
                 self.capture("05-system-source-permission")
@@ -169,26 +172,48 @@ class Emulator:
             self.capture(phase + "-failure")
             raise RuntimeError(log.read_text(encoding="utf-8"))
 
+    def restart_recovery(self):
+        seed = self.phase("seed")
+        match = re.search(r"downloadId=(\d+)", seed)
+        if not match:
+            raise RuntimeError(seed)
+        self.command("reboot")
+        self.online()
+        self.phase("resume", "-e", "id", match[1])
+
+    def fixture_open(self):
+        result = self.shell("am", "start", "-W", "-n", "tv.calmhome.downloadfixture/android.app.Activity")
+        if "Status: ok" not in result:
+            raise RuntimeError(result)
+        self.capture("08-fixture-open")
+
     def run(self):
-        try:
-            self.visual()
-            self.phase("verify")
-            seed = self.phase("seed")
-            match = re.search(r"downloadId=(\d+)", seed)
-            if not match:
-                raise RuntimeError(seed)
-            self.command("reboot")
-            self.online()
-            self.phase("resume", "-e", "id", match[1])
-            self.allow_source_in_settings()
-            self.consent("install-deny", "cancel")
-            self.consent("install-allow", "install")
-            self.shell("am", "start", "-W", "-n", "tv.calmhome.downloadfixture/android.app.Activity")
-            self.capture("08-fixture-open")
-        finally:
-            (self.out / "gfxinfo.txt").write_text(self.shell("dumpsys", "gfxinfo", "tv.calmhome.launcher"), encoding="utf-8")
-            (self.out / "memory.txt").write_text(self.shell("dumpsys", "meminfo", "tv.calmhome.launcher"), encoding="utf-8")
-            (self.out / "crash-log.txt").write_text(self.command("logcat", "-b", "crash", "-d"), encoding="utf-8")
+        outcomes = []
+        def test(label, action):
+            try:
+                action()
+                outcomes.append(label + ": PASS")
+                print(outcomes[-1], flush=True)
+                return True
+            except Exception as error:
+                outcomes.append(label + ": FAIL " + str(error))
+                print(outcomes[-1], flush=True)
+                return False
+
+        test("TV D-pad", self.visual)
+        test("JobScheduler, APK parser and actual cancel/retry", lambda: self.phase("verify"))
+        test("HTTPS release transfer and self-update refusal", lambda: self.phase("https"))
+        test("Persistence across emulator reboot", self.restart_recovery)
+        if test("Android source settings", self.allow_source_in_settings):
+            test("Android installer cancellation", lambda: self.consent("install-deny", "cancel"))
+            if test("Android installer approval and detection", lambda: self.consent("install-allow", "install")):
+                test("Installed TV activity launch", self.fixture_open)
+        (self.out / "gfxinfo.txt").write_text(self.shell("dumpsys", "gfxinfo", "tv.calmhome.launcher"), encoding="utf-8")
+        (self.out / "memory.txt").write_text(self.shell("dumpsys", "meminfo", "tv.calmhome.launcher"), encoding="utf-8")
+        (self.out / "crash-log.txt").write_text(self.command("logcat", "-b", "crash", "-d"), encoding="utf-8")
+        (self.out / "results.txt").write_text("\n".join(outcomes) + "\n", encoding="utf-8")
+        if any(": FAIL" in line for line in outcomes):
+            raise SystemExit(1)
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

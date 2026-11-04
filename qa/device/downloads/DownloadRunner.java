@@ -25,6 +25,19 @@ public final class DownloadRunner extends Instrumentation {
                 long id = Long.parseLong(args.getString("id"));
                 verify(d.find(id));
                 d.remove(id);
+            } else if (phase.equals("https")) {
+                String hash = "ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401";
+                long id = d.enqueue("https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/" +
+                        "v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk", hash);
+                try {
+                    DownloadRecord release = await(d, id);
+                    check(release.bytes == 5744160 && release.sha256.equals(hash), "Release size/hash mismatch: " + release.error);
+                    check(release.state == FAILED && release.packageName.equals("tv.calmhome.launcher") &&
+                            release.error.contains("HOME launcher"), "Unapproved self-update was not refused.");
+                    result.putString("finalHost", android.net.Uri.parse(release.finalUrl).getHost());
+                    result.putString("sha256", release.sha256);
+                    result.putString("bytes", String.valueOf(release.bytes));
+                } finally { d.remove(id); }
             } else if (phase.equals("seed")) {
                 long id = d.importFile(FixtureProvider.VALID, "");
                 verify(await(d, id));

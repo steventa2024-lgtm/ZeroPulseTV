@@ -2,6 +2,14 @@
     <queries><package android:name="tv.calmhome.launcher" /></queries>
     <instrumentation android:name=".DownloadRunner" android:targetPackage="tv.calmhome.launcher" />
     <application android:label="ZeroPulse download QA" android:allowBackup="false">
+        <activity android:name=".FixturePicker" android:exported="true" android:label="ZeroPulse QA files">
+            <intent-filter>
+                <action android:name="android.intent.action.OPEN_DOCUMENT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
         <provider android:name=".FixtureProvider" android:authorities="tv.calmhome.downloadqa.samples"
             android:exported="true" android:readPermission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true" />
     </application>

@@ -43,7 +43,7 @@ def build(sdk, jdk, bt, key, output):
         run([java / ("javac.exe" if win else "javac"), "-encoding", "UTF-8", "-source", "8", "-target", "8",
              "-Xlint:-options", "-bootclasspath", os.pathsep.join(map(str, [android, stubs])),
              "-sourcepath", ROOT / "launcher/src", "-d", classes,
-             HERE / "DownloadRunner.java", HERE / "FixtureProvider.java"])
+             HERE / "DownloadRunner.java", HERE / "FixtureProvider.java", HERE / "FixturePicker.java"])
         with zipfile.ZipFile(tmp / "qa.jar", "w") as jar:
             for f in (classes / "tv/calmhome/downloadqa").rglob("*.class"):
                 jar.write(f, f.relative_to(classes).as_posix())

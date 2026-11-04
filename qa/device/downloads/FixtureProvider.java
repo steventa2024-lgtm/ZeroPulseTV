@@ -60,13 +60,15 @@ public class FixtureProvider extends ContentProvider {
         }
         if ("probe".equals(method)) {
             Bundle result = new Bundle();
+            result.putInt("armed", state.getInt("armed", -1));
+            result.putInt("boot", bootCount());
             result.putInt("reopened", state.getInt("reopened", -1));
             return result;
         }
         if (!"grant".equals(method)) throw new SecurityException();
         long identity = Binder.clearCallingIdentity();
         try {
-          for (Uri uri : new Uri[]{VALID, INVALID, SLOW}) {
+          for (Uri uri : new Uri[]{VALID, INVALID}) {
             getContext().grantUriPermission(TARGET, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
           }
         } finally { Binder.restoreCallingIdentity(identity); }

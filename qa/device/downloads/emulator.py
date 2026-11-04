@@ -25,7 +25,10 @@ class Emulator:
     def tree(self):
         # uiautomator waits for idle and may briefly fail during activity transitions.
         for _ in range(3):
-            self.shell("uiautomator", "dump", "/sdcard/zp-qa.xml")
+            result = self.shell("uiautomator", "dump", "/sdcard/zp-qa.xml")
+            if "dumped to" not in result.lower():
+                time.sleep(.3)
+                continue
             raw = self.shell("cat", "/sdcard/zp-qa.xml")
             try:
                 return ET.fromstring(raw.strip())
@@ -45,7 +48,7 @@ class Emulator:
             raise RuntimeError("Missing test document grants: " + result)
 
     def phase(self, phase, *extra):
-        if phase != "inflight-resume":
+        if not phase.startswith("inflight-"):
             self.grant_fixtures()
         result = self.shell("am", "instrument", "-w", "-e", "phase", phase, *extra, "tv.calmhome.downloadqa/.DownloadRunner")
         (self.out / (phase + ".txt")).write_text(result, encoding="utf-8")
@@ -151,12 +154,12 @@ class Emulator:
         self.capture("05-source-settings-failure")
         raise RuntimeError("Could not locate ZeroPulse's installation-source switch in Android settings")
 
-    def click_text(self, label, contains=False, pkg="tv.calmhome.launcher", timeout=16):
+    def click_text(self, label, contains=False, pkg="tv.calmhome.launcher", timeout=40):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             for n in self.tree().iter("node"):
                 text = n.get("text", "").strip()
-                if n.get("package") == pkg and (label in text if contains else label == text):
+                if n.get("package") == pkg and (label.casefold() in text.casefold() if contains else label.casefold() == text.casefold()):
                     self.tap(n)
                     return
             time.sleep(.3)
@@ -216,49 +219,73 @@ class Emulator:
             raise RuntimeError("No terminal installation result appeared in the launcher.")
         self.phase(phase, "-e", "id", id_)
 
+    def job_diagnostics(self, label):
+        (self.out / (label + "-jobs.txt")).write_text(
+            self.shell("dumpsys", "jobscheduler", "tv.calmhome.launcher"), encoding="utf-8")
+        grants = self.shell("dumpsys", "activity", "permissions").splitlines()
+        selected = []
+        for index, line in enumerate(grants):
+            if "tv.calmhome.downloadqa.samples/reboot.apk" in line:
+                selected.extend(grants[index:index+3])
+        (self.out / (label + "-fixture-grant.txt")).write_text("\n".join(selected), encoding="utf-8")
+
     def inflight_reboot(self):
         before = int(self.shell("settings", "get", "global", "boot_count").strip())
-        self.grant_fixtures()
-        log = self.out / "inflight-seed.txt"
-        with log.open("w", encoding="utf-8") as stream:
-            process = subprocess.Popen(self.adb + ["shell", "am", "instrument", "-w", "-e", "phase",
-                    "inflight-seed", "tv.calmhome.downloadqa/.DownloadRunner"], stdout=stream, stderr=subprocess.STDOUT)
-            try:
-                deadline = time.monotonic() + 100
-                while time.monotonic() < deadline:
-                    lines = log.read_text(encoding="utf-8")
-                    match = re.search(r"downloadId=(\d+)", lines)
-                    if match and "bytesBefore=1024" in lines and "INSTRUMENTATION_STATUS_CODE: 1" in lines:
-                        break
-                    if process.poll() is not None:
-                        raise RuntimeError("Partial transfer did not reach checkpoint: " + lines)
-                    time.sleep(.2)
-                else:
-                    raise RuntimeError("Timeout waiting for partial transfer checkpoint")
-                download_id = match[1]
-                self.command("reboot")
-                self.online()
-            finally:
-                if process.poll() is None:
-                    process.terminate()
-                process.wait(timeout=10)
+        prepared = self.phase("inflight-prepare")
+        download_id = re.search(r"downloadId=(\d+)", prepared)[1]
+        # Use the normal Android picker. Instrumentation is finished before the active transfer.
+        self.shell("am", "start", "-W", "-n", "tv.calmhome.launcher/.MainActivity", "--es", "zp_open", "downloads")
+        self.click_text("Manage Downloads")
+        self.click_text("Choose an APK file")
+        for _ in range(6):
+            tree = self.tree()
+            if self.contains(tree, "Choose gated reboot fixture"):
+                self.click_text("Choose gated reboot fixture", pkg="tv.calmhome.downloadqa")
+                break
+            for node in tree.iter("node"):
+                if node.get("text", "").casefold() in ("zeropulse qa files", "just once"):
+                    self.tap(node)
+                    break
+        else:
+            self.capture("inflight-missing-picker")
+            raise RuntimeError("Could not select the gated QA file in Android's picker")
+
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline:
+            t = self.tree()
+            labels = [n.get("text", "") for n in t.iter("node")]
+            if any("Downloading" in label and re.search(r"\b1(?:[.,]0\d?)?\s*kB", label, re.I) for label in labels):
+                self.capture("inflight-visible-checkpoint", t)
+                break
+        else:
+            self.capture("inflight-missing-checkpoint")
+            raise RuntimeError("Download details did not display the partial 1,024-byte transfer")
+        self.job_diagnostics("inflight-before")
+        # Android 14 batches persisted URI grants on a ten-second timer. Leave time for
+        # both that write and JobStore while the fixture remains blocked at 1,024 bytes.
+        time.sleep(15)
+        self.command("reboot")
+        self.online()
+
         after = int(self.shell("settings", "get", "global", "boot_count").strip())
         if after <= before:
             raise RuntimeError("Android boot count did not advance")
-        # Probe only the fixture process: allow the OS job to run before opening any launcher UI,
-        # instrumenting the launcher or providing fresh grants on the new boot.
+        # Probe only the fixture process, without reopening the launcher or issuing a fresh grant.
         deadline = time.monotonic() + 140
         while time.monotonic() < deadline:
             probe = self.shell("content", "call", "--uri", "content://tv.calmhome.downloadqa.samples", "--method", "probe")
             if re.search(rf"reopened={after}\b", probe):
                 break
             time.sleep(2)
-        else:
-            raise RuntimeError("Android did not reopen the partially transferred fixture after boot")
-        time.sleep(3)  # Allow the short APK to finish inspection before instrumenting the process.
+        self.job_diagnostics("inflight-after")
+        (self.out / "inflight-probe.txt").write_text(probe, encoding="utf-8")
+        if not re.search(rf"reopened={after}\b", probe):
+            self.phase("inflight-state", "-e", "id", download_id)
+            raise RuntimeError("Android did not reopen the partial transfer after boot: " + probe)
+        time.sleep(3)
         result = self.phase("inflight-resume", "-e", "id", download_id)
         (self.out / "inflight-result.txt").write_text(
-            f"Boot count {before} -> {after}\nDownload ID {download_id}\nCheckpoint 1024 bytes\n{probe}\n{result}", encoding="utf-8")
+            f"Boot count {before} -> {after}\nDownload ID {download_id}\nGated checkpoint 1024 bytes\n{probe}\n{result}", encoding="utf-8")
         print("In-flight reboot recovery: PASS", flush=True)
 
     def restart_recovery(self):

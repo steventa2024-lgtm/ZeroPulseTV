@@ -26,25 +26,27 @@ public final class DownloadRunner extends Instrumentation {
             Downloads d = Downloads.get(getTargetContext());
             String phase = args.getString("phase", "verify");
             // Starting instrumentation force-stops the target, dropping prior temporary URI grants.
-            if (!phase.equals("resume") && !phase.equals("inflight-resume")) getTargetContext().getContentResolver().call(FixtureProvider.VALID, "grant", null, null);
-            if (phase.equals("inflight-seed")) {
+            if (!phase.equals("resume") && !phase.startsWith("inflight-")) getTargetContext().getContentResolver().call(FixtureProvider.VALID, "grant", null, null);
+            if (phase.equals("inflight-prepare")) {
+                for (DownloadRecord row : d.list()) {
+                    if (FixtureProvider.SLOW.toString().equals(row.url)) d.remove(row.id);
+                }
                 getTargetContext().getContentResolver().call(FixtureProvider.SLOW, "arm", null, null);
-                long id = d.importFile(FixtureProvider.SLOW, fixtureHash());
-                long deadline = SystemClock.elapsedRealtime() + 90000;
-                DownloadRecord partial;
-                do {
-                    partial = d.find(id);
-                    if (partial.state == FAILED || SystemClock.elapsedRealtime() >= deadline)
-                        throw new AssertionError("Expected a gated partial transfer, got " + partial.state + " " + partial.error);
-                    Thread.sleep(100);
-                } while (partial.state != DOWNLOADING || partial.bytes != 1024 || partial.bytes >= partial.total);
-                check(persistedFixtureGrant(), "Missing persisted fixture grant before reboot");
-                result.putString("downloadId", String.valueOf(id));
-                result.putString("bytesBefore", String.valueOf(partial.bytes));
-                result.putString("total", String.valueOf(partial.total));
-                sendStatus(1, result); // The host reboots this emulator with the transfer still active.
-                Thread.sleep(120000);
-                throw new AssertionError("Host did not reboot during the gated transfer.");
+                // No other actions enqueue a row between this checkpoint and the normal file picker.
+                try (android.database.sqlite.SQLiteDatabase db = android.database.sqlite.SQLiteDatabase.openDatabase(
+                        getTargetContext().getDatabasePath("downloads.db").getPath(), null,
+                        android.database.sqlite.SQLiteDatabase.OPEN_READONLY);
+                     android.database.Cursor c = db.rawQuery("SELECT seq FROM sqlite_sequence WHERE name='downloads'", null)) {
+                    result.putString("downloadId", String.valueOf(c.moveToFirst() ? c.getLong(0) + 1 : 1));
+                }
+            } else if (phase.equals("inflight-state")) {
+                DownloadRecord row = d.find(Long.parseLong(args.getString("id")));
+                result.putString("state", row == null ? "removed" : row.state.name());
+                if (row != null) {
+                    result.putString("bytes", String.valueOf(row.bytes));
+                    result.putString("error", row.error);
+                }
+                result.putString("persistedReadGrant", String.valueOf(persistedFixtureGrant()));
             } else if (phase.equals("inflight-resume")) {
                 long id = Long.parseLong(args.getString("id"));
                 check(persistedFixtureGrant(), "Read grant was lost across reboot");
@@ -52,7 +54,7 @@ public final class DownloadRunner extends Instrumentation {
                 String expected = fixtureHash();
                 check(recovered.state == COMPLETED && recovered.bytes == recovered.total && recovered.bytes > 1024,
                         "Incomplete recovered transfer: " + recovered.state + " " + recovered.error);
-                check(expected.equals(recovered.expectedSha256) && expected.equals(recovered.sha256), "Recovered digest mismatch");
+                check(recovered.expectedSha256.isEmpty() && expected.equals(recovered.sha256), "Recovered digest mismatch");
                 check("tv.calmhome.downloadfixture".equals(recovered.packageName) && recovered.versionCode == 1,
                         "Recovered APK metadata mismatch");
                 result.putString("bytesAfter", String.valueOf(recovered.bytes));

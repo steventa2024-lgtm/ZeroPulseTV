@@ -46,7 +46,7 @@ New-Item -ItemType Directory -Force "$out\classes" | Out-Null
 Run "$bt\aapt2.exe" @("compile", "--dir", "$src\res", "-o", "$out\res.zip")
 # Assets are added with jar below: aapt2 -A on Windows stores paths with backslashes, which Android can't open.
 Run "$bt\aapt2.exe" @("link", "-o", "$out\base.apk", "-I", $jar, "--manifest", "$src\AndroidManifest.xml",
-    "--min-sdk-version", "26", "--target-sdk-version", "31", "$out\res.zip", "--java", "$out\gen", "--auto-add-overlay")
+    "--min-sdk-version", "26", "--target-sdk-version", "34", "$out\res.zip", "--java", "$out\gen", "--auto-add-overlay")
 
 "== javac"
 $java = @(Get-ChildItem "$src\src" -Recurse -Filter *.java | ForEach-Object FullName)

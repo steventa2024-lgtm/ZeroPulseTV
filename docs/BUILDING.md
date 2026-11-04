@@ -1,5 +1,7 @@
 # Building ZeroPulse TV
 
+V3 targets Android 14 (API 34) and retains API 26 as its minimum. Both command-line pipelines link the same manifest and package. APK transfers declare the normal network-state permission required by Android 14 for scheduled network work. The manifest preserves the existing remote Back callbacks, and a foreground viewer can reopen only the pending approval for the selected install session. [Android 14 behavior changes](https://developer.android.com/about/versions/14/behavior-changes-14)
+
 The launcher builds with JDK 17, Android SDK Platform 34 and Build-Tools. Both pipelines compile Java 8 bytecode for API 26+, package the offline assets, align the APK, sign it, and verify the certificate. The package is `tv.calmhome.launcher`. A development signature works on a fresh emulator. An in-place TV update requires the installed app's signing certificate and a higher version code.
 
 ## macOS, including Apple Silicon
@@ -45,5 +47,7 @@ The runners execute the core, JARVIS and downloader JVM suites and compile the e
 Before a physical TV update, record `adb devices -l`, the selected serial, model, Android version, existing package version, and certificate. Compare with `aapt dump badging` and `apksigner verify --verbose --print-certs` on the candidate. Confirm owner approval before running `adb -s SERIAL install -r CANDIDATE.apk`. A signing mismatch or downgrade requires stopping. Preserve app data and current HOME ownership. Testing a development candidate on a disposable TV AVD requires a separate Android TV system image and emulator.
 
 For an already-approved v3 installation, run `node qa/device-smoke.mjs SERIAL` from the checkout with Node 22+ and ADB on PATH, or set `ADB` to the full platform-tools executable. Begin with the launcher at Home. The script checks the package version before sending any input, navigates via real D-pad events, checks source forms, focus restoration, invalid-link handling, apps, settings and inputs, and saves PNG, accessibility XML, startup timing, memory and frame diagnostics under the ignored `qa/device-evidence/` directory. It refuses to send key events outside the launcher. Inspect screenshots for attribution, contrast and layout; automated focus bounds alone cannot verify those.
+
+For isolated emulators, supply an output directory and append `--emulator-motion` for the FHD reduced-motion pass or `--emulator-4k` for a native 3840×2160 AVD. Both modes temporarily set the Android animator scale to zero, exercise D-pad movement and restore the previous value. The 4K pass checks for a 3840×2160 framebuffer and temporarily uses density 640.
 
 The feature-branch CI job runs the QA suite and signs a throwaway development APK on GitHub's standard Apple Silicon `macos-15` runner. Its image includes Android Platform 34 and Build-Tools 36.0.0. The workflow selects those versions and requires read-only repository access. [GitHub runner labels](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job) · [Installed macOS arm64 SDKs](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md).

@@ -6,6 +6,8 @@
     android:versionName="3.0.0-beta.1">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Target 34 requires this normal permission for JobScheduler network constraints. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Persistent user-initiated APK transfers and the system installation approval dialog. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -32,6 +34,7 @@
         android:icon="@drawable/zp_icon"
         android:banner="@drawable/zp_banner"
         android:allowBackup="false"
+        android:enableOnBackInvokedCallback="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">

@@ -174,7 +174,16 @@ final class Installer {
         foreground = new WeakReference<>(a);
         PendingIntent prompt = r.sessionId < 0 ? null : pendingPrompt(r);
         if (prompt != null) {
-            try { prompt.send(); return; } catch (PendingIntent.CanceledException ignored) { }
+            // Only a foreground viewer selecting Continue can reopen our immutable, session-specific prompt.
+            if (!a.hasWindowFocus()) throw new IllegalStateException("Return to the download to continue Android approval.");
+            try {
+                if (Build.VERSION.SDK_INT >= 34) {
+                    android.app.ActivityOptions options = android.app.ActivityOptions.makeBasic();
+                    options.setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+                    prompt.send(a, 0, null, null, null, null, options.toBundle());
+                } else prompt.send();
+                return;
+            } catch (PendingIntent.CanceledException ignored) { /* Look up the session below. */ }
         }
         if (preparing.contains(r.id)) return;
         PackageInstaller.SessionInfo session = r.sessionId < 0 ? null : os.getSessionInfo(r.sessionId);

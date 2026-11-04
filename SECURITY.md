@@ -28,7 +28,7 @@ changing it would turn every update into a separate app and lose users' settings
 
 ## What the app can and cannot do
 
-- The private v3 beta requests `INTERNET`, `RECEIVE_BOOT_COMPLETED` for persisted Android download jobs, and `REQUEST_INSTALL_PACKAGES` for the system installer. Public v2.1 requests only `INTERNET`.
+- The private v3 beta requests `INTERNET`, `ACCESS_NETWORK_STATE` for Android 14 download job network constraints, `RECEIVE_BOOT_COMPLETED` for persisted jobs, and `REQUEST_INSTALL_PACKAGES` for the system installer. Public v2.1 requests only `INTERNET`.
 - The TV can launch apps, switch inputs, and stage an inspected APK when the owner selects Install. Android controls permission to install from this source and prompts for installation. JARVIS has no method for downloading or installing APKs.
 - Network traffic originates from an explicit APK download or the optional JARVIS connection. Home and its wallpaper rotation work offline.
 - Cleartext network traffic is disabled in the manifest; the JARVIS client only speaks TLS 1.3.

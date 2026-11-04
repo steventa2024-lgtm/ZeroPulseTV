@@ -27,7 +27,7 @@ compile_app() {
     mkdir -p "$BUILD_DIR/classes" "$BUILD_DIR/gen/tv/calmhome/launcher"
     "$BT/aapt2" compile --dir "$ROOT/launcher/res" -o "$BUILD_DIR/resources.zip"
     "$BT/aapt2" link -o "$BUILD_DIR/base.apk" -I "$ANDROID_JAR" \
-        --manifest "$ROOT/launcher/AndroidManifest.xml" --min-sdk-version 26 --target-sdk-version 31 \
+        --manifest "$ROOT/launcher/AndroidManifest.xml" --min-sdk-version 26 --target-sdk-version 34 \
         -A "$ROOT/launcher/assets" --java "$BUILD_DIR/gen" --auto-add-overlay "$BUILD_DIR/resources.zip"
     commit=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)
     [[ -z $(git -C "$ROOT" status --porcelain 2>/dev/null) ]] || commit="$commit-modified"

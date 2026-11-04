@@ -28,6 +28,8 @@ import java.util.List;
 import tv.calmhome.launcher.assistant.AssistantActivity;
 import tv.calmhome.launcher.core.DockList;
 import tv.calmhome.launcher.core.Greeting;
+import tv.calmhome.launcher.core.SourceEntry;
+import tv.calmhome.launcher.data.SourceCatalog;
 import tv.calmhome.launcher.core.WallpaperCatalog;
 import tv.calmhome.launcher.data.Apps;
 import tv.calmhome.launcher.data.Prefs;
@@ -91,6 +93,7 @@ public class MainActivity extends Activity implements Panel.Host {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (state != null) pickerCategory = state.getString("apkPickerCategory");
         prefs = new Prefs(this);
         theme = new Theme(this, prefs);
         w = new Widgets(this, theme);
@@ -493,9 +496,17 @@ public class MainActivity extends Activity implements Panel.Host {
     }
 
     private static final int PICK_APK = 713;
+    private String pickerCategory;
 
     @Override
-    public void pickApk() {
+    protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putString("apkPickerCategory", pickerCategory);
+    }
+
+    @Override
+    public void pickApk(SourceEntry.Category category) {
+        pickerCategory = category == null ? null : category.name();
         Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
                 .setType("*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         try { startActivityForResult(pick, PICK_APK); }
@@ -505,9 +516,13 @@ public class MainActivity extends Activity implements Panel.Host {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request != PICK_APK || result != RESULT_OK || data == null || data.getData() == null) return;
+        if (request != PICK_APK) return;
+        String category = pickerCategory;
+        pickerCategory = null;
+        if (result != RESULT_OK || data == null || data.getData() == null) return;
         try {
             long id = Downloads.get(this).importFile(data.getData(), "");
+            if (category != null) new SourceCatalog(this).indexFile(id, SourceEntry.Category.valueOf(category));
             if (panels.isEmpty()) open(new DownloadsPanel(this));
             open(DownloadsPanel.detail(this, id));
         } catch (IllegalArgumentException | IllegalStateException | SecurityException e) { toast(e.getMessage()); }

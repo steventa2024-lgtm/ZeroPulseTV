@@ -142,7 +142,11 @@ final class DownloadDetailPanel extends DownloadPage {
         host.open(new MenuPanel(host, "Remove download?", "This deletes the private APK and its history. An installed app stays on the TV.")
                 .item("Keep download", null)
                 .item("Remove download", () -> {
-                    try { downloads.remove(id); host.close(this); }
+                    try {
+                        downloads.remove(id);
+                        new tv.calmhome.launcher.data.SourceCatalog(c).forgetFile(id);
+                        host.close(this);
+                    }
                     catch (IllegalStateException e) { host.toast(e.getMessage()); }
                 }, true));
     }

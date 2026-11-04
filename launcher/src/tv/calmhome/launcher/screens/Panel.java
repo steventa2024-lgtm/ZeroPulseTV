@@ -39,7 +39,7 @@ public abstract class Panel {
         void rebuild(String reopen);
         void openAssistant();
         void navigate(String tab);
-        void pickApk();
+        void pickApk(tv.calmhome.launcher.core.SourceEntry.Category category);
         void toast(String text);
     }
 
@@ -118,6 +118,7 @@ public abstract class Panel {
         LinearLayout col = new LinearLayout(c);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setClipChildren(false);
+        col.setClipToPadding(false);
         col.setPadding(t.safeX(), t.safeY(), t.safeX(), t.safeY());
 
         String tab = this instanceof AppsPanel ? "Apps" : this instanceof InputsPanel ? "Inputs" :

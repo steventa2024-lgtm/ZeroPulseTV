@@ -10,17 +10,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 final class DownloadStore extends SQLiteOpenHelper {
-    DownloadStore(Context context) { super(context, "downloads.db", null, 1); }
+    DownloadStore(Context context) { super(context, "downloads.db", null, 2); }
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, state TEXT NOT NULL, url TEXT NOT NULL," +
                 " finalUrl TEXT NOT NULL, fileName TEXT NOT NULL, expected TEXT NOT NULL, sha TEXT NOT NULL DEFAULT ''," +
                 " bytes INTEGER NOT NULL DEFAULT 0, total INTEGER NOT NULL DEFAULT -1, pkg TEXT NOT NULL DEFAULT ''," +
                 " versionName TEXT NOT NULL DEFAULT '', versionCode INTEGER NOT NULL DEFAULT 0, minSdk INTEGER NOT NULL DEFAULT 0," +
                 " permissions TEXT NOT NULL DEFAULT '', error TEXT NOT NULL DEFAULT '', appName TEXT NOT NULL DEFAULT ''," +
-                " sessionId INTEGER NOT NULL DEFAULT -1, attempt INTEGER NOT NULL DEFAULT 0, inspected INTEGER NOT NULL DEFAULT 0)");
+                " sessionId INTEGER NOT NULL DEFAULT -1, attempt INTEGER NOT NULL DEFAULT 0, inspected INTEGER NOT NULL DEFAULT 0, jobId INTEGER NOT NULL DEFAULT 0)");
     }
     @Override public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        throw new IllegalStateException("Unsupported downloads database version.");
+        if (oldVersion == 1 && newVersion == 2) {
+            db.execSQL("ALTER TABLE downloads ADD COLUMN jobId INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("UPDATE downloads SET jobId=id");
+        } else throw new IllegalStateException("Unsupported downloads database version.");
     }
 
     long insert(String url, String expected, String name) {
@@ -53,7 +56,7 @@ final class DownloadStore extends SQLiteOpenHelper {
         v.put("finalUrl", r.finalUrl); v.put("fileName", r.fileName); v.put("sha", r.sha256);
         v.put("pkg", r.packageName); v.put("versionName", r.versionName); v.put("versionCode", r.versionCode);
         v.put("minSdk", r.minSdk); v.put("permissions", r.permissions); v.put("error", r.error);
-        v.put("inspected", r.inspected ? 1 : 0); v.put("sessionId", r.sessionId); v.put("attempt", r.attempt); v.put("appName", r.appName);
+        v.put("jobId", r.jobId); v.put("inspected", r.inspected ? 1 : 0); v.put("sessionId", r.sessionId); v.put("attempt", r.attempt); v.put("appName", r.appName);
         getWritableDatabase().update("downloads", v, "id=?", args(r.id));
     }
 
@@ -69,7 +72,7 @@ final class DownloadStore extends SQLiteOpenHelper {
         r.bytes = c.getLong(7); r.total = c.getLong(8); r.packageName = c.getString(9);
         r.versionName = c.getString(10); r.versionCode = c.getLong(11); r.minSdk = c.getInt(12);
         r.permissions = c.getString(13); r.error = c.getString(14); r.appName = c.getString(15);
-        r.sessionId = c.getInt(16); r.attempt = c.getLong(17); r.inspected = c.getInt(18) != 0;
+        r.sessionId = c.getInt(16); r.attempt = c.getLong(17); r.inspected = c.getInt(18) != 0; r.jobId = c.getInt(19);
         return r;
     }
 }

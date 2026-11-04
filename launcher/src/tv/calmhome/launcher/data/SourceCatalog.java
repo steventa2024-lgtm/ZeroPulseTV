@@ -18,6 +18,18 @@ public final class SourceCatalog {
 
     private Set<String> rows() { return new HashSet<>(prefs.getStringSet("entries", Collections.emptySet())); }
 
+    public void indexFile(long downloadId, SourceEntry.Category category) {
+        prefs.edit().putString("file_" + downloadId, category.name()).apply();
+    }
+
+    public boolean containsFile(long downloadId, SourceEntry.Category category) {
+        return category.name().equals(prefs.getString("file_" + downloadId, null));
+    }
+
+    public void forgetFile(long downloadId) {
+        prefs.edit().remove("file_" + downloadId).apply();
+    }
+
     public List<SourceEntry> all() {
         List<SourceEntry> entries = new ArrayList<>();
         for (String row : rows()) {

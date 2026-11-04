@@ -6,8 +6,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const serial = process.argv[2];
-if (!serial || process.argv.length > 4) {
-  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory]');
+const displayTest = process.argv[4] === '--emulator-display';
+if (!serial || process.argv.length > 5 || (process.argv[4] && !displayTest)) {
+  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-display]');
   process.exit(2);
 }
 const pkg = 'tv.calmhome.launcher';
@@ -57,8 +58,9 @@ function priority(from, target) {
 // If a panel clamps an arrow at an edge, use the observed transitions to try another direction.
 async function focus(target) {
   const edges = new Map();
+  let ui = tree();
   for (let attempt = 0; attempt < 60; attempt++) {
-    const ui = tree(), current = ui.focused;
+    const current = ui.focused;
     assert.ok(current, 'No launcher control has keyboard focus');
     if (matches(current, target)) return;
     const wanted = ui.nodes.find(n => n.focusable === 'true' && matches(n, target));
@@ -75,7 +77,8 @@ async function focus(target) {
     }
     assert.ok(next, 'Focus is trapped before ' + target);
     await key(next);
-    const reached = tree().focused;
+    ui = tree();
+    const reached = ui.focused;
     assert.ok(reached, 'Focus lost after ' + next);
     if (!edges.has(current.id)) edges.set(current.id, new Map());
     edges.get(current.id).set(next, reached.id);
@@ -102,6 +105,41 @@ function capture(name, expected) {
 async function backTo(target) {
   await key('BACK');
   assert.ok(matches(tree().focused, target), 'Back did not restore focus to ' + target);
+}
+
+async function emulatorDisplayTest() {
+  assert.match(serial, /^emulator-\d+$/, 'Display overrides are restricted to an emulator serial');
+  assert.equal(shell('getprop', 'ro.kernel.qemu').trim(), '1', 'Display overrides require a disposable emulator');
+  const size = shell('wm', 'size');
+  const density = shell('wm', 'density');
+  const originalSize = size.match(/Override size: (\d+x\d+)/)?.[1] || 'reset';
+  const originalDensity = density.match(/Override density: (\d+)/)?.[1] || 'reset';
+  const motion = shell('settings', 'get', 'global', 'animator_duration_scale').trim();
+  save('display-before.txt', size + density + 'animator_duration_scale=' + motion + '\n');
+  try {
+    shell('wm', 'size', '3840x2160');
+    shell('wm', 'density', '640'); // 1080p/320 and 2160p/640 have the same logical TV canvas.
+    shell('settings', 'put', 'global', 'animator_duration_scale', '0');
+    assert.equal(shell('settings','get','global','animator_duration_scale').trim(), '0');
+    await pause(750);
+    await open('Downloads');
+    await focus('Live Sports, browse sources');
+    capture('13-4k-reduced-motion', 'Download Center');
+    const png = adb('exec-out', 'screencap', '-p');
+    assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [3840, 2160], 'Expected true 4K raster');
+    await key('DPAD_RIGHT');
+    assert.equal(tree().focused?.label, 'Movies & TV, browse sources', 'Reduced-motion D-pad movement');
+    capture('14-4k-movies-focus', 'Download Center');
+    await open('Home');
+  } finally {
+    if (motion === 'null') shell('settings', 'delete', 'global', 'animator_duration_scale');
+    else shell('settings', 'put', 'global', 'animator_duration_scale', motion);
+    shell('wm', 'density', originalDensity);
+    shell('wm', 'size', originalSize);
+    assert.equal(shell('wm','size'), size, 'Original display size was not restored');
+    assert.equal(shell('wm','density'), density, 'Original display density was not restored');
+    assert.equal(shell('settings','get','global','animator_duration_scale').trim(), motion, 'Animator scale was not restored');
+  }
 }
 
 const home = () => shell('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME').trim();
@@ -153,6 +191,7 @@ try {
   } else console.log('SKIP Assistant: disabled in owner settings');
   await open('Home');
   capture('12-home-return', 'Downloads');
+  if (displayTest) await emulatorDisplayTest();
   console.log('PASS default HOME membership', home() === beforeHome);
   assert.equal(home(), beforeHome, 'Default HOME changed during test');
 } catch (error) {

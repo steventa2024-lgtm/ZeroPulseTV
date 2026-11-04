@@ -8,7 +8,7 @@ public final class DownloadRecord {
     public State state;
     public int minSdk;
     boolean inspected;
-    int sessionId;
+    int sessionId, jobId;
     long attempt;
     boolean acceptsAttempt(long token) { return attempt == token && transferActive(); }
     boolean acceptsInstallResult(int session) {

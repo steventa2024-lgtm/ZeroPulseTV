@@ -23,7 +23,8 @@ public final class DownloadJob extends JobService {
     @Override public boolean onStartJob(JobParameters params) {
         Downloads downloads = Downloads.get(this);
         int id = params.getJobId();
-        DownloadRecord r = downloads.beginAttempt(id);
+        long downloadId = params.getExtras().getLong("download", id);
+        DownloadRecord r = downloads.beginAttempt(downloadId, id);
         if (r == null) return false;
         attempts.put(id, r);
         active.put(id, pool.submit(() -> {
@@ -52,7 +53,7 @@ public final class DownloadJob extends JobService {
         Future<?> task = active.remove(id);
         if (task != null) task.cancel(true);
         DownloadRecord r = attempts.remove(id);
-        return r != null && Downloads.get(this).interrupted(id, r.attempt);
+        return r != null && Downloads.get(this).interrupted(r.id, r.attempt);
     }
 
     @Override public void onDestroy() {

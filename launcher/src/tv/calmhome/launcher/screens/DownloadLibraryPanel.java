@@ -35,7 +35,7 @@ final class DownloadLibraryPanel extends DownloadPage {
         list = column();
         empty = text("No downloads yet. Enter a trusted HTTPS link in Download Center or choose a local APK.", Theme.T_BODY, false);
         body.addView(list);
-        View picker = action("Choose an APK file", host::pickApk);
+        View picker = action("Choose an APK file", () -> host.pickApk(null));
         body.addView(picker, spaced(8));
         first = picker;
         refresh();

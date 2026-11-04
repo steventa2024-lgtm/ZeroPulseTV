@@ -4,6 +4,8 @@ Open Downloads from the top navigation or the Home shortcut. Select Live Sports,
 
 **Go** accepts a direct HTTPS URL or a local numeric shortcut, retaining leading zeros. An unmapped code offers to copy it and open the installed AFTVnews Downloader app. Enter the code there. ZeroPulse makes no request to a third-party code resolver. [AFTVnews Downloader](https://www.aftvnews.com/downloader/)
 
+An APK chosen inside a category appears in that category and in Manage Downloads after a restart. An APK chosen directly from Manage Downloads belongs to the library.
+
 ## Transfer and installation
 
 The user reviews the source before an HTTPS transfer. Android JobScheduler runs the transfer with network constraints and persists it across reboots. The worker validates every redirect before contacting its destination, uses private APK staging, and checks space and a 512 MiB per-download limit. Restarting an interrupted attempt may restart its byte counter. Status and size come from the job and file. The history is limited to 100 entries. Use Manage Downloads to cancel, retry or remove an entry.

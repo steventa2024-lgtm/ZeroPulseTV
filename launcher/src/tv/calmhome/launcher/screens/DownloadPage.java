@@ -19,10 +19,12 @@ abstract class DownloadPage extends Panel {
         body = new LinearLayout(c);
         body.setOrientation(LinearLayout.VERTICAL);
         body.setClipChildren(false);
+        body.setClipToPadding(false);
         body.setPadding(t.dp(5), t.dp(3), t.dp(5), t.dp(7));
     }
     View screen(String title) {
         ScrollView scroll = new ScrollView(c);
+        scroll.setClipChildren(false);
         scroll.setClipToPadding(false);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setFillViewport(true);

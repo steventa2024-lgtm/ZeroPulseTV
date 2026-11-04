@@ -4,6 +4,8 @@ import android.view.View;
 import android.widget.LinearLayout;
 import tv.calmhome.launcher.core.SourceEntry;
 import tv.calmhome.launcher.data.SourceCatalog;
+import tv.calmhome.launcher.downloads.DownloadRecord;
+import tv.calmhome.launcher.downloads.Downloads;
 import tv.calmhome.launcher.ui.Theme;
 
 final class SourceCategoryPanel extends DownloadPage {
@@ -20,7 +22,7 @@ final class SourceCategoryPanel extends DownloadPage {
         body.addView(text("Developer sources saved on this TV", Theme.T_BODY, false));
         first = action("Add a trusted source", () -> host.open(new SourceEditorPanel(host, category)));
         body.addView(first, spaced(9));
-        body.addView(action("Choose an APK file", host::pickApk), spaced(4));
+        body.addView(action("Choose an APK file", () -> host.pickApk(category)), spaced(4));
         entries = column();
         body.addView(entries, spaced(9));
         populate();
@@ -37,6 +39,16 @@ final class SourceCategoryPanel extends DownloadPage {
                     });
             row.setTag(entry.url);
             row.setGravity(android.view.Gravity.START | android.view.Gravity.CENTER_VERTICAL);
+            entries.addView(row, spaced(4));
+        }
+        for (DownloadRecord file : Downloads.get(c).list()) {
+            if (!catalog.containsFile(file.id, category)) continue;
+            String tag = "file:" + file.id;
+            View row = action(file.fileName + "   ·   " + DownloadLibraryPanel.label(file.state), () -> {
+                returnUrl = tag;
+                host.open(DownloadsPanel.detail(host, file.id));
+            });
+            row.setTag(tag);
             entries.addView(row, spaced(4));
         }
         if (entries.getChildCount() == 0)

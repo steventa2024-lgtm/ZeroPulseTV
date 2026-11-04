@@ -42,11 +42,24 @@ jobs:
           test -d "$ANDROID_HOME/system-images/android-34/android-tv/x86"
           test -c /dev/kvm
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
-          printf 'no\n' | avdmanager create avd -n zp-ci-tv -k 'system-images;android-34;android-tv;x86' -d tv_1080p
-          mkdir -p "$RUNNER_TEMP/emulator-evidence"
+          # Use one explicit AVD directory for both avdmanager and the emulator.
+          export ANDROID_USER_HOME="$RUNNER_TEMP/zp-android"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME" "$RUNNER_TEMP/emulator-evidence"
+          avd_path="$ANDROID_AVD_HOME/zp-ci-tv.avd"
+          printf 'no\n' | avdmanager create avd -n zp-ci-tv -p "$avd_path" -k 'system-images;android-34;android-tv;x86' -d tv_1080p
+          test -s "$avd_path/config.ini"
+          printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-34\n' "$avd_path" > "$ANDROID_AVD_HOME/zp-ci-tv.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx zp-ci-tv
           "$ANDROID_HOME/emulator/emulator" -avd zp-ci-tv -port 5562 -no-window -no-snapshot -no-audio \
-            -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator-evidence/boot.txt" 2>&1 &
-          timeout 300 bash -c 'until [[ $(adb -s "$EMU" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r") == 1 ]]; do sleep 2; done'
+            -no-boot-anim -gpu software > "$RUNNER_TEMP/emulator-evidence/boot.txt" 2>&1 &
+          avd_pid=$!
+          for poll in {1..150}; do
+            if ! kill -0 "$avd_pid" 2>/dev/null; then cat "$RUNNER_TEMP/emulator-evidence/boot.txt"; exit 1; fi
+            if [[ "$(adb -s "$EMU" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then break; fi
+            sleep 2
+          done
+          test "$(adb -s "$EMU" shell getprop sys.boot_completed | tr -d '\r')" = 1
           test "$(adb -s "$EMU" shell getprop ro.kernel.qemu | tr -d '\r')" = 1
           adb -s "$EMU" shell wm dismiss-keyguard
       - name: Test TV navigation, transfer, reboot recovery and Android install callbacks

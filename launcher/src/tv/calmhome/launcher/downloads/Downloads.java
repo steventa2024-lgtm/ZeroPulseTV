@@ -5,6 +5,8 @@ import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
+import android.os.PersistableBundle;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
@@ -26,6 +28,7 @@ public final class Downloads {
     final Installer installer;
     private final JobScheduler jobs;
     private final File dir;
+    private final SharedPreferences scheduling;
     public static synchronized Downloads get(Context context) {
         if (instance == null) instance = new Downloads(context.getApplicationContext());
         return instance;
@@ -33,6 +36,7 @@ public final class Downloads {
     private Downloads(Context c) {
         context = c;
         store = new DownloadStore(c);
+        scheduling = c.getSharedPreferences("download_jobs", Context.MODE_PRIVATE);
         installer = new Installer(this);
         jobs = c.getSystemService(JobScheduler.class);
         dir = new File(c.getNoBackupFilesDir(), "apks");
@@ -48,7 +52,7 @@ public final class Downloads {
             }
         }
         for (DownloadRecord r : store.list()) {
-            if (r.transferActive() && jobs.getPendingJob((int) r.id) == null) schedule(r);
+            if (r.transferActive() && jobs.getPendingJob(r.jobId) == null) schedule(r);
         }
     }
     public synchronized List<DownloadRecord> list() { return store.list(); }
@@ -88,18 +92,28 @@ public final class Downloads {
         return id;
     }
     private void schedule(DownloadRecord r) {
-        JobInfo.Builder b = new JobInfo.Builder(Math.toIntExact(r.id), new ComponentName(context, DownloadJob.class))
-                .setPersisted(true).setMinimumLatency(0);
-        if (!r.url.startsWith("content://")) b.setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY);
         try {
+            // Android can deliver an old stop after a rapid Cancel → Retry. Allocate a fresh OS job
+            // ID every time, while keeping the stable download history ID and private APK path.
+            int last = scheduling.getInt("last", 0);
+            for (DownloadRecord old : store.list()) last = Math.max(last, old.jobId);
+            if (last == Integer.MAX_VALUE || !scheduling.edit().putInt("last", last + 1).commit())
+                throw new IllegalStateException("Could not reserve a transfer job.");
+            r.jobId = last + 1;
+            store.save(r);
+            PersistableBundle meta = new PersistableBundle();
+            meta.putLong("download", r.id);
+            JobInfo.Builder b = new JobInfo.Builder(r.jobId, new ComponentName(context, DownloadJob.class))
+                    .setExtras(meta).setPersisted(true).setMinimumLatency(0);
+            if (!r.url.startsWith("content://")) b.setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY);
             if (jobs.schedule(b.build()) == JobScheduler.RESULT_SUCCESS) return;
         } catch (RuntimeException ignored) { }
         r.state = FAILED; r.error = "Android could not queue the transfer. Retry later."; store.save(r);
     }
 
-    synchronized DownloadRecord beginAttempt(long id) {
+    synchronized DownloadRecord beginAttempt(long id, int jobId) {
         DownloadRecord r = store.find(id);
-        if (r == null || !r.transferActive()) return null;
+        if (r == null || r.jobId != jobId || !r.transferActive()) return null;
         r.attempt++;
         resetProgress(r);
         r.state = DOWNLOADING;
@@ -138,7 +152,7 @@ public final class Downloads {
         DownloadRecord r = require(id);
         if (!r.transferActive()) throw new IllegalStateException("This transfer is no longer active.");
         r.attempt++; r.state = CANCELED; r.error = "Transfer canceled."; store.save(r);
-        jobs.cancel((int) id);
+        jobs.cancel(r.jobId);
     }
     public synchronized void retry(long id) {
         DownloadRecord r = require(id);

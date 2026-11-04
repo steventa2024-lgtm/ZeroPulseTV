@@ -134,7 +134,7 @@ public class WallpapersPanel extends Panel {
         for (int i = 0; i < tabs.getChildCount(); i++) {
             TextView v = (TextView) tabs.getChildAt(i);
             boolean active = v.getTag().equals(prefs.wallpaperCollection());
-            if (v.isFocused()) v.setBackground(t.outlined(0xFF435568, Theme.ELECTRIC_BLUE, 2, Theme.R_PILL));
+            if (v.isFocused()) v.setBackground(t.outlined(0xFF50545A, Theme.ELECTRIC_BLUE, 2, Theme.R_PILL));
             else if (active) v.setBackground(t.outlined(Theme.withAlpha(Theme.ELECTRIC_BLUE, 0.25f), Theme.ELECTRIC_BLUE, 1, Theme.R_PILL));
             else v.setBackground(t.glass(Theme.R_PILL, 0.7f));
         }

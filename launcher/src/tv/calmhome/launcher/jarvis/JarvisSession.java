@@ -80,7 +80,7 @@ public final class JarvisSession {
     private int attempt;
     private ScheduledFuture<?> retry, watchdog, busyHint;
     private long generation;
-    private String runId;
+    private boolean responding;
     private long pairingSince;
     private final AtomicLong pairingEpoch = new AtomicLong();
 
@@ -194,8 +194,13 @@ public final class JarvisSession {
                 return;
             }
             try {
-                Map<String, Object> r = link.request("tv.chat.send", Json.map("text", text), 8000);
-                runId = Json.str(r, "runId");
+                if (text == null || text.trim().isEmpty() || text.length() > 2000) {
+                    listener.onReply("error", "Use a question between 1 and 2,000 characters.");
+                    return;
+                }
+                if (responding) { listener.onReply("busy", "A reply is already in progress."); return; }
+                link.request("tv.chat.send", Json.map("text", text), 8000);
+                responding = true;
                 armWatchdog();
             } catch (GatewayLink.Refused r) {
                 if ("PROVIDER_RATE_LIMITED".equals(r.code)) listener.onProvider(ClaudeCodeStatus.RATE_LIMITED);
@@ -208,8 +213,22 @@ public final class JarvisSession {
 
     public void abort() {
         exec.execute(() -> {
-            cancelReplyTimers();
-            if (link != null) try { link.request("tv.chat.abort", Json.map(), 5000); } catch (Exception ignored) { /* best effort */ }
+            if (link == null || state != State.CONNECTED) {
+                listener.onReply("error", "The PC is offline. Stop could not be confirmed.");
+                return;
+            }
+            try {
+                Map<String, Object> result = link.request("tv.chat.abort", Json.map(), 5000);
+                if (Json.bool(result, "aborted")) {
+                    cancelReplyTimers();
+                    listener.onReply("aborted", "");
+                } else {
+                    listener.onReply("busy", "The PC has no active generation to stop.");
+                    syncHistory(link);
+                }
+            } catch (Exception e) {
+                listener.onReply("busy", "The PC did not confirm Stop. Retry or wait for the reply.");
+            }
         });
     }
 
@@ -218,6 +237,7 @@ public final class JarvisSession {
             if (link == null) return;
             try {
                 link.request("tv.chat.reset", Json.map(), 8000);
+                cancelReplyTimers();
                 listener.onHistory(new ArrayList<>());
             } catch (Exception e) {
                 listener.onReply("error", "Could not start a new conversation.");
@@ -331,15 +351,25 @@ public final class JarvisSession {
         set(State.CONNECTED, name != null ? name : "JARVIS");
         providerReported = false;
         if (l.hello().methods.contains("tv.status")) refreshProvider();
+        syncHistory(l);
+    }
+
+    private void syncHistory(GatewayLink l) {
         try {
-            Map<String, Object> h = l.request("tv.chat.history", Json.map("limit", 20), 8000);
+            Map<String, Object> h = l.request("tv.chat.history", Json.map("limit", ChatHistory.LIMIT), 8000);
             List<String[]> out = new ArrayList<>();
             for (Object o : Json.list(h, "messages")) {
                 Map<String, Object> m = Json.obj(o);
                 if (m != null) out.add(new String[]{Json.str(m, "role"), Json.str(m, "text")});
             }
             listener.onHistory(out);
-            if (Json.bool(h, "running")) listener.onReply("busy", "");
+            if (Json.bool(h, "running")) {
+                armWatchdog();
+                listener.onReply("busy", "");
+            } else {
+                cancelReplyTimers();
+                listener.onReply("idle", "");
+            }
         } catch (Exception ignored) {
             // history is a convenience; the conversation still works without it
         }
@@ -389,7 +419,7 @@ public final class JarvisSession {
         return new GatewayLink.Events() {
             @Override
             public void onEvent(String event, Map<String, Object> payload) {
-                exec.execute(() -> {
+                dispatchEvent(() -> {
                     if (gen != generation) return;
                     handleEvent(event, payload);
                 });
@@ -397,7 +427,7 @@ public final class JarvisSession {
 
             @Override
             public void onClosed(int code, String reason, Exception error) {
-                exec.execute(() -> {
+                dispatchEvent(() -> {
                     if (gen != generation) return;
                     link = null;
                     cancelReplyTimers();
@@ -414,6 +444,15 @@ public final class JarvisSession {
                 });
             }
         };
+    }
+
+    private void dispatchEvent(Runnable event) {
+        try {
+            exec.execute(event);
+        } catch (java.util.concurrent.RejectedExecutionException closing) {
+            // WebSocket close can arrive after the Activity has released its executor.
+            if (!exec.isShutdown()) throw closing;
+        }
     }
 
     private void handleEvent(String event, Map<String, Object> p) {
@@ -449,9 +488,11 @@ public final class JarvisSession {
 
     private void armWatchdog() {
         cancelReplyTimers();
+        responding = true;
         busyHint = exec.schedule(() -> listener.onReply("busy", "JARVIS is busy; still waiting…"), BUSY_HINT_MS, TimeUnit.MILLISECONDS);
         watchdog = exec.schedule(() -> {
             if (link != null) try { link.request("tv.chat.abort", Json.map(), 5000); } catch (Exception ignored) { /* best effort */ }
+            responding = false;
             listener.onReply("timeout", "JARVIS did not answer in time.");
         }, REPLY_LIMIT_MS, TimeUnit.MILLISECONDS);
     }
@@ -462,6 +503,7 @@ public final class JarvisSession {
     }
 
     private void cancelReplyTimers() {
+        responding = false;
         cancelBusyHint();
         if (watchdog != null) watchdog.cancel(false);
         watchdog = null;

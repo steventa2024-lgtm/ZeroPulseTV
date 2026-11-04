@@ -1,7 +1,7 @@
 name: v3 Android TV emulator
 on:
   push:
-    branches: [feat/zeropulsetv-v3-glass-downloader-jarvis-20261103]
+    branches: [feat/zeropulsetv-v3-graphite-glass-claude-voice-20261104]
   workflow_dispatch:
 
 permissions:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   tv-emulator:
-    if: github.ref == 'refs/heads/feat/zeropulsetv-v3-glass-downloader-jarvis-20261103'
+    if: github.ref == 'refs/heads/feat/zeropulsetv-v3-graphite-glass-claude-voice-20261104'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:

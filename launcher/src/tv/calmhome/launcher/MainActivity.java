@@ -71,7 +71,10 @@ public class MainActivity extends Activity implements Panel.Host {
     private WallpaperStage stage;
 
     private FrameLayout root, mainUi;
-    private View dim;
+    private View dim, graphite;
+    private boolean started;
+    private LinearLayout recentRow;
+    private List<String> shownRecent;
     private LinearLayout dock, greetingBox;
     private Navigation navigation;
     private HorizontalScrollView dockScroll;
@@ -106,7 +109,10 @@ public class MainActivity extends Activity implements Panel.Host {
 
         packageReceiver = new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent i) {
+                if (i.getData() != null) apps.invalidate(i.getData().getSchemeSpecificPart());
                 buildDock();
+                refreshRecents(true);
+                for (Panel panel : panels) panel.onPackagesChanged();
             }
         };
         IntentFilter f = new IntentFilter();
@@ -116,13 +122,17 @@ public class MainActivity extends Activity implements Panel.Host {
         f.addDataScheme("package");
         registerReceiver(packageReceiver, f);
 
-        handleOpenExtra(getIntent());
+        if (!handleOpenExtra(getIntent()) && state != null && state.getString("restoreSection") != null) {
+            handleOpenExtra(new Intent().putExtra(EXTRA_OPEN, state.getString("restoreSection")));
+        }
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        stage.start();
+        started = true;
+        syncBackdrop();
+        refreshRecents(false);
         handler.removeCallbacks(greetingTick);
         greetingTick.run();
     }
@@ -136,6 +146,7 @@ public class MainActivity extends Activity implements Panel.Host {
     @Override
     protected void onStop() {
         super.onStop();
+        started = false;
         stage.stop();
         handler.removeCallbacks(greetingTick);
     }
@@ -174,8 +185,12 @@ public class MainActivity extends Activity implements Panel.Host {
         closeAll();
         String[] parts = open.split(":", 2);
         switch (parts[0]) {
+            case "home": focusFirstDockTile(); break;
             case "apps": open(new AppsPanel(this)); break;
-            case "downloads": open(new DownloadsPanel(this)); break;
+            case "downloads":
+                open(new DownloadsPanel(this));
+                if (parts.length > 1 && "library".equals(parts[1])) open(DownloadsPanel.library(this));
+                break;
             case "inputs": open(new InputsPanel(this)); break;
             case "wallpapers": open(new WallpapersPanel(this)); break;
             case "settings": open(new SettingsPanel(this, parts.length > 1 ? parts[1] : null)); break;
@@ -209,6 +224,10 @@ public class MainActivity extends Activity implements Panel.Host {
                 new int[]{0xE0000000, 0x8C000000, 0x00000000}));
         root.addView(bottomShade, new FrameLayout.LayoutParams(Widgets.MATCH, theme.rawDp(300), Gravity.BOTTOM));
 
+        graphite = new View(this);
+        graphite.setBackground(new tv.calmhome.launcher.ui.GraphiteBackdrop());
+        root.addView(graphite, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+
         mainUi = new FrameLayout(this);
         mainUi.setClipChildren(false);
         root.addView(mainUi, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
@@ -222,29 +241,26 @@ public class MainActivity extends Activity implements Panel.Host {
         // Area C: ambient greeting
         greetingBox = new LinearLayout(this);
         greetingBox.setOrientation(LinearLayout.VERTICAL);
-        greetingBox.setGravity(Gravity.CENTER_HORIZONTAL);
+        greetingBox.setGravity(Gravity.START);
         // Full-width, centred, single-line text: on the TV the content-sized greeting showed only "Good".
         greeting = theme.text(this, Theme.T_GREETING, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
         theme.overPhoto(greeting);
-        greeting.setGravity(Gravity.CENTER_HORIZONTAL);
+        greeting.setGravity(Gravity.START);
         greeting.setSingleLine(true);
         updateGreeting();
         greetingBox.addView(greeting, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
         TextView tagline = theme.text(this, Theme.T_TAGLINE, Theme.withAlpha(Theme.SOFT_WHITE, 0.88f), Theme.FONT_REGULAR);
-        tagline.setText(Greeting.TAGLINE);
+        tagline.setText("Your TV  ·  Android " + android.os.Build.VERSION.RELEASE);
         tagline.setLetterSpacing(0.06f);
-        tagline.setGravity(Gravity.CENTER_HORIZONTAL);
+        tagline.setGravity(Gravity.START);
         tagline.setSingleLine(true);
         theme.overPhoto(tagline);
         LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
         gl.topMargin = theme.dp(8);
         greetingBox.addView(tagline, gl);
-        PulseLogo mark = new PulseLogo(this, theme.dp(18)).name("");
-        LinearLayout.LayoutParams ml = w.wrap();
-        ml.topMargin = theme.dp(8);
-        greetingBox.addView(mark, ml);
+
         FrameLayout.LayoutParams gbl = new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP, Gravity.CENTER_HORIZONTAL);
-        gbl.topMargin = Math.round(theme.screenH() * 0.30f);
+        gbl.setMargins(sx, Math.round(theme.screenH() * .19f), sx, 0);
         mainUi.addView(greetingBox, gbl);
 
         // Areas D + E + footer, stacked from the bottom safe margin
@@ -252,6 +268,13 @@ public class MainActivity extends Activity implements Panel.Host {
         bottom.setOrientation(LinearLayout.VERTICAL);
         bottom.setClipChildren(false);
 
+        bottom.addView(shelfLabel("Recently opened", sx));
+        recentRow = new LinearLayout(this);
+        recentRow.setGravity(Gravity.CENTER_VERTICAL);
+        recentRow.setClipChildren(false);
+        recentRow.setPadding(sx, 0, sx, 0);
+        bottom.addView(recentRow, new LinearLayout.LayoutParams(Widgets.MATCH, theme.dp(35)));
+        bottom.addView(shelfLabel("Favorites", sx));
         float availDp = (theme.screenW() - 2f * sx) / getResources().getDisplayMetrics().density / theme.scale;
         tileW = Math.round((availDp - (DOCK_COLUMNS - 1) * Theme.GAP) / DOCK_COLUMNS);
         tileH = Math.round(tileW * 9f / 16f);
@@ -274,7 +297,7 @@ public class MainActivity extends Activity implements Panel.Host {
         addChip(chips, Glyph.Kind.DOWNLOAD, "Downloads", false, v -> navigate("Downloads"));
         chipAssistant = addChip(chips, Glyph.Kind.ASSISTANT, "Assistant", true, v -> openAssistant());
         addChip(chips, Glyph.Kind.IMAGE, "Wallpapers", false, v -> open(new WallpapersPanel(this)));
-        addChip(chips, Glyph.Kind.GEAR, "Settings", false, v -> open(new SettingsPanel(this, null)));
+        addChip(chips, Glyph.Kind.INPUTS, "Inputs", false, v -> navigate("Inputs"));
         LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(Widgets.MATCH, theme.dp(42));
         cl.topMargin = theme.dp(8);
         bottom.addView(chips, cl);
@@ -287,7 +310,7 @@ public class MainActivity extends Activity implements Panel.Host {
         LinearLayout powered = new LinearLayout(this);
         powered.setGravity(Gravity.CENTER_VERTICAL);
         TextView pw = theme.text(this, Theme.T_CAPTION, Theme.withAlpha(Theme.SOFT_WHITE, 0.6f), Theme.FONT_REGULAR);
-        pw.setText("ZeroPulse TV");
+        pw.setText("ZeroPulse TV  ·  Local launcher");
         powered.addView(pw);
         footer.addView(powered, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
         LinearLayout.LayoutParams fl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
@@ -299,6 +322,65 @@ public class MainActivity extends Activity implements Panel.Host {
         mainUi.addView(bottom, bl);
 
         applyHomePrefs();
+    }
+
+    private TextView shelfLabel(String label, int sx) {
+        TextView v = theme.text(this, Theme.T_LABEL, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        v.setText(label); v.setPadding(sx, theme.dp(4), sx, theme.dp(3));
+        return v;
+    }
+
+    private void refreshRecents(boolean force) {
+        List<String> visible = DockList.visible(prefs.recentlyOpened(), apps::usable);
+        if (!force && visible.equals(shownRecent)) return;
+        shownRecent = visible;
+        Object focused = recentRow.findFocus() == null ? null : recentRow.findFocus().getTag();
+        recentRow.removeAllViews();
+        if (visible.isEmpty()) {
+            TextView empty = theme.text(this, Theme.T_BODY, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
+            empty.setText("Apps you open from ZeroPulse will appear here.");
+            recentRow.addView(empty);
+        }
+        for (String pkg : visible) {
+            TextView app = w.navItem(apps.label(pkg), false, v -> launchApp(pkg));
+            app.setBackground(theme.glass(Theme.R_PILL, .8f));
+            app.setTag(pkg);
+            app.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            android.graphics.drawable.Drawable icon = apps.icon(pkg);
+            if (icon != null) {
+                icon.setBounds(0, 0, theme.dp(17), theme.dp(17));
+                app.setCompoundDrawablesRelative(icon, null, null, null);
+                app.setCompoundDrawablePadding(theme.dp(4));
+            }
+            int width = (theme.screenW() - 2 * theme.safeX() - theme.dp(25)) / 6;
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(width, Widgets.WRAP);
+            if (recentRow.getChildCount() > 0) lp.leftMargin = theme.dp(5);
+            recentRow.addView(app, lp);
+        }
+        if (focused != null) {
+            View restored = recentRow.findViewWithTag(focused);
+            if (restored != null) restored.requestFocus();
+        }
+    }
+
+    private void syncBackdrop() {
+        Panel base = null;
+        for (int i = panels.size() - 1; i >= 0; i--) {
+            if (!panels.get(i).isModal()) { base = panels.get(i); break; }
+        }
+        boolean obscured = false;
+        for (int i = panels.size() - 1; i >= 0; i--) {
+            Panel p = panels.get(i);
+            p.view().setVisibility(obscured ? View.INVISIBLE : View.VISIBLE);
+            if (!p.isModal()) obscured = true;
+        }
+        mainUi.setVisibility(obscured ? View.INVISIBLE : View.VISIBLE);
+        mainUi.setAlpha(panels.isEmpty() ? 1f : .6f);
+        boolean photo = base == null ? prefs.usePhotoBackdrop() : base instanceof WallpapersPanel;
+        graphite.setVisibility(photo ? View.GONE : View.VISIBLE);
+        credit.setVisibility(photo ? View.VISIBLE : View.GONE);
+        stage.setFrosted(photo && base != null);
+        if (photo && started) stage.start(); else stage.stop();
     }
 
     private View addChip(LinearLayout row, Glyph.Kind icon, String text, boolean accent, View.OnClickListener click) {
@@ -329,6 +411,7 @@ public class MainActivity extends Activity implements Panel.Host {
     private void applyHomePrefs() {
         greetingBox.setVisibility(prefs.showGreeting() ? View.VISIBLE : View.GONE);
         navigation.refresh(this);
+        syncBackdrop();
         dim.setBackgroundColor(Color.argb(Math.round(2.55f * prefs.dimPercent()), 0, 0, 0));
         int a = prefs.assistantEnabled() ? View.VISIBLE : View.GONE;
         chipAssistant.setVisibility(a);
@@ -426,15 +509,15 @@ public class MainActivity extends Activity implements Panel.Host {
         View v = p.view();
         if (panels.isEmpty()) {
             mainUi.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-            mainUi.animate().alpha(p.isModal() ? 0.6f : 0f).setDuration(theme.fadeMs(180)).start();
+
         } else {
             View below = panels.get(panels.size() - 1).view();
             ((ViewGroup) below).setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
             if (!p.isModal()) below.setVisibility(View.INVISIBLE);
         }
-        stage.setFrosted(!p.isModal() || panels.size() > 0);
         p.setReturnFocus(previousFocus);
         panels.add(p);
+        syncBackdrop();
         v.setAlpha(0f);
         root.addView(v, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         v.animate().alpha(1f).setDuration(theme.fadeMs(180)).start();
@@ -448,13 +531,14 @@ public class MainActivity extends Activity implements Panel.Host {
         int i = panels.indexOf(p);
         if (i < 0) return;
         panels.remove(i);
+        syncBackdrop();
         root.removeView(p.view());
         p.onClosed();
         View back = p.returnFocus();
         if (panels.isEmpty()) {
             stage.setFrosted(false);
             mainUi.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            mainUi.animate().alpha(1f).setDuration(theme.fadeMs(180)).start();
+
             applyHomePrefs();
         } else {
             Panel top = panels.get(panels.size() - 1);
@@ -506,6 +590,10 @@ public class MainActivity extends Activity implements Panel.Host {
     protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         state.putString("apkPickerCategory", pickerCategory);
+        for (int i = panels.size() - 1; i >= 0; i--) {
+            String route = panels.get(i).restoreRoute();
+            if (route != null) { state.putString("restoreSection", route); break; }
+        }
     }
 
     @Override
@@ -513,6 +601,12 @@ public class MainActivity extends Activity implements Panel.Host {
         pickerCategory = category == null ? null : category.name();
         Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
                 .setType("*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        android.content.pm.ResolveInfo handler = getPackageManager().resolveActivity(pick, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+        if (handler != null && "com.android.tv.frameworkpackagestubs".equals(handler.activityInfo.packageName)) {
+            pickerCategory = null;
+            toast("This TV has no file picker. Enter a developer HTTPS link in Downloads.");
+            return;
+        }
         try { startActivityForResult(pick, PICK_APK); }
         catch (android.content.ActivityNotFoundException e) { toast("This TV has no document picker. Enter a developer HTTPS link instead."); }
     }

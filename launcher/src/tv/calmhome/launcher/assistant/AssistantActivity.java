@@ -3,7 +3,8 @@ package tv.calmhome.launcher.assistant;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.GradientDrawable;
+import android.content.SharedPreferences;
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,7 +19,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.TextClock;
+
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -33,12 +34,14 @@ import tv.calmhome.launcher.jarvis.JarvisSession;
 import tv.calmhome.launcher.jarvis.ClaudeCodeStatus;
 import tv.calmhome.launcher.jarvis.TvSuggestion;
 import tv.calmhome.launcher.ui.Glyph;
-import tv.calmhome.launcher.ui.PulseLogo;
+import tv.calmhome.launcher.ui.Navigation;
+import tv.calmhome.launcher.ui.GraphiteBackdrop;
+import tv.calmhome.launcher.jarvis.ChatHistory;
 import tv.calmhome.launcher.ui.Theme;
 import tv.calmhome.launcher.ui.Widgets;
 
 /**
- * ZeroPulse Assistant: the holographic scene with local TV commands and, once paired, a conversation with
+ * ZeroPulse Assistant: local TV commands, explicit push-to-talk and, once paired, a conversation with
  * JARVIS on the PC through the OpenPulse TV link.
  *
  * Local commands work with no PC and are tried first. JARVIS only connects while this screen is visible
@@ -48,7 +51,11 @@ import tv.calmhome.launcher.ui.Widgets;
  */
 public class AssistantActivity extends Activity implements JarvisSession.Listener {
 
-    private static final int MAX_MESSAGES = 30;
+    private AssistantVoice voice;
+    private TextView mic, voiceStatus, speakToggle, silence, stopReply, send;
+    private ChatHistory history;
+    private SharedPreferences localChat;
+    private boolean responding, visible, pairingNewPc;
 
     private Prefs prefs;
     private Theme t;
@@ -87,6 +94,18 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         w = new Widgets(this, t);
         apps = new Apps(this);
         creds = new KeystoreCredentials(this);
+        localChat = getSharedPreferences("zp_chat_v1", MODE_PRIVATE);
+        history = ChatHistory.read(localChat.getString("turns", null));
+        voice = new AssistantVoice(this, new AssistantVoice.Listener() {
+            @Override public void onVoiceChanged() { renderVoice(); }
+            @Override public void onTranscript(String text) {
+                input.setText(text);
+                input.setSelection(input.length());
+                input.requestFocus();
+                say("Review your words, then select Send.", false);
+            }
+        });
+        voice.restore(state);
         String name = Settings.Global.getString(getContentResolver(), "device_name");
         String version;
         try { version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
@@ -94,12 +113,17 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         session = new JarvisSession(creds, this, name != null && !name.isEmpty() ? name : "ZeroPulse TV", version, 4000);
         getWindow().setBackgroundDrawable(new ColorDrawable(Theme.DEEP_BLACK));
         setContentView(build());
-        render(JarvisSession.State.NOT_CONFIGURED, "");
+        if (state != null) input.setText(state.getString("draft", ""));
+        displayHistory();
+        render(creds.load() == null ? JarvisSession.State.NOT_CONFIGURED : JarvisSession.State.OFFLINE, "");
+        renderVoice();
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        visible = true;
+        voice.refresh();
         session.start();          // connect only while the Assistant is on screen
     }
 
@@ -108,8 +132,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         super.onResume();
         reactor.setAnimated(prefs.reactorAnimation() && !t.reducedMotion);
         reactor.setRunning(true);
-        if (overlay.getVisibility() != View.VISIBLE && commandList.getChildCount() > 0 && getCurrentFocus() == null)
-            commandList.getChildAt(0).requestFocus();
+        if (getCurrentFocus() == null && overlay.getVisibility() != View.VISIBLE) input.requestFocus();
     }
 
     @Override
@@ -121,13 +144,27 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     @Override
     protected void onStop() {
         super.onStop();
+        visible = false;
+        voice.onBackground();
         session.stop();           // no network activity once the Assistant is closed
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        voice.close();
         session.shutdown();
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        voice.onResult(request, result, data);
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        voice.save(out);
+        out.putString("draft", input.getText().toString());
     }
 
     @Override
@@ -169,10 +206,10 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     public void onHistory(List<String[]> list) {
         main.post(() -> {
             if (isDestroyed()) return;
-            messages.removeAllViews();
-            liveReply = null;
-            for (String[] m : list) addMessage("user".equals(m[0]), m[1]);
-            if (list.isEmpty()) hintMessage();
+            if (history.syncFromGateway(list)) {
+                persistHistory();
+                displayHistory();
+            }
         });
     }
 
@@ -180,127 +217,173 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
 
     private View build() {
         FrameLayout root = new FrameLayout(this);
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Theme.DEEP_BLACK, Theme.MIDNIGHT_NAVY, Theme.DEEP_BLACK});
-        root.setBackground(bg);
+        root.setBackground(new GraphiteBackdrop());
+        dashboard = vertical();
+        dashboard.setPadding(t.safeX(), t.safeY(), t.safeX(), t.safeY());
+        dashboard.setClipChildren(false);
+        root.addView(dashboard, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+        dashboard.addView(new Navigation(this, t, w, prefs, "Assistant", tab -> {
+            if (!"Assistant".equals(tab)) openPanel(tab.toLowerCase(java.util.Locale.ROOT), "Opening " + tab);
+        }), new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
 
-        LinearLayout col = new LinearLayout(this);
-        dashboard = col;
-        col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(t.safeX(), t.safeY(), t.safeX(), t.safeY());
-        col.setClipChildren(false);
-        root.addView(col, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = t.text(this, 29, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        title.setText("Assistant");
+        heading.addView(title, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
+        reactor = new ReactorView(this);
+        heading.addView(reactor, new LinearLayout.LayoutParams(t.dp(28), t.dp(28)));
+        stateLabel = t.text(this, Theme.T_CAPTION, Theme.MUTED_GRAY, Theme.FONT_MEDIUM);
+        stateLabel.setPadding(t.dp(4), 0, t.dp(10), 0);
+        heading.addView(stateLabel, w.wrap());
+        heading.addView(statusChip(), w.wrap());
+        dashboard.addView(heading, spaced(7));
 
-        // header
-        FrameLayout header = new FrameLayout(this);
-        header.addView(new PulseLogo(this, t.dp(26)).suffix("Assistant", Theme.PULSE_CYAN),
-                new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.START | Gravity.CENTER_VERTICAL));
-        LinearLayout right = new LinearLayout(this);
-        right.setGravity(Gravity.CENTER_VERTICAL);
-        right.addView(statusChip());
-        TextClock clock = new TextClock(this);
-        clock.setFormat12Hour("h:mm");
-        clock.setFormat24Hour("H:mm");
-        t.style(clock, 26, Theme.SOFT_WHITE, Theme.FONT_LIGHT);
-        clock.setGravity(Gravity.END);
-        clock.setSingleLine(true);
-        LinearLayout.LayoutParams ckl = new LinearLayout.LayoutParams(t.dp(110), Widgets.WRAP);   // fixed: see Panel clock
-        ckl.leftMargin = t.dp(20);
-        right.addView(clock, ckl);
-        header.addView(right, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
-        col.addView(header, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
-
-        // middle: commands | reactor + conversation | JARVIS
         LinearLayout mid = new LinearLayout(this);
         mid.setClipChildren(false);
-        commandList = new LinearLayout(this);
-        commandList.setOrientation(LinearLayout.VERTICAL);
-        commandList.setClipChildren(false);
-        buildCommands();
-        mid.addView(panel("TV commands", commandList), new LinearLayout.LayoutParams(t.dp(230), Widgets.WRAP));
-
-        LinearLayout centre = new LinearLayout(this);
-        centre.setOrientation(LinearLayout.VERTICAL);
-        centre.setGravity(Gravity.CENTER_HORIZONTAL);
-        reactor = new ReactorView(this);
-        centre.addView(reactor, new LinearLayout.LayoutParams(t.dp(150), t.dp(150)));
-        stateLabel = t.text(this, Theme.T_LABEL, Theme.HOLO_BLUE, Theme.FONT_MEDIUM);
-        stateLabel.setLetterSpacing(0.18f);
-        // Explicit WRAP params: a vertical LinearLayout's default child width is MATCH_PARENT, which put this
-        // label off-centre (and, in content-sized parents, clipped multi-word text to one line on this TV).
-        centre.addView(stateLabel, w.wrap());
+        LinearLayout thread = vertical();
+        thread.setPadding(t.dp(13), t.dp(9), t.dp(13), t.dp(8));
+        thread.setBackground(t.glass(Theme.R_PANEL, .78f));
+        TextView transcriptTitle = t.text(this, Theme.T_TITLE, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        transcriptTitle.setText("Conversation");
+        thread.addView(transcriptTitle);
         convo = new ScrollView(this);
         convo.setFocusable(true);
         convo.setFillViewport(true);
-        convo.setContentDescription("Conversation");
-        convo.setPadding(t.dp(14), t.dp(10), t.dp(14), t.dp(10));
-        convo.setBackground(t.outlined(Theme.withAlpha(Theme.PANEL_NAVY, 0.55f), Theme.withAlpha(Theme.HOLO_BLUE, 0.25f), 1, Theme.R_PANEL));
-        convo.setOnFocusChangeListener((v, has) -> v.setBackground(t.outlined(Theme.withAlpha(Theme.PANEL_NAVY, 0.55f),
-                has ? Theme.ELECTRIC_BLUE : Theme.withAlpha(Theme.HOLO_BLUE, 0.25f), has ? 1.5f : 1, Theme.R_PANEL)));
-        messages = new LinearLayout(this);
-        messages.setOrientation(LinearLayout.VERTICAL);
-        convo.addView(messages, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
-        LinearLayout.LayoutParams cvl = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
-        cvl.topMargin = t.dp(8);
-        centre.addView(convo, cvl);
-        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, Widgets.MATCH, 1f);
-        cl.leftMargin = t.dp(16);
-        cl.rightMargin = t.dp(16);
-        mid.addView(centre, cl);
+        convo.setContentDescription("Conversation history. Up and down to read.");
+        convo.setSmoothScrollingEnabled(!t.reducedMotion);
+        convo.setBackground(t.rounded(Theme.withAlpha(Theme.DEEP_BLACK, .35f), 10));
+        convo.setOnFocusChangeListener((v, has) -> v.setForeground(w.ring(has, 10)));
+        messages = vertical();
+        messages.setPadding(t.dp(10), t.dp(6), t.dp(10), t.dp(8));
+        convo.addView(messages);
+        LinearLayout.LayoutParams historySpace = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
+        historySpace.topMargin = t.dp(5);
+        thread.addView(convo, historySpace);
+        response = t.text(this, Theme.T_LABEL, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
+        response.setMaxLines(2);
+        response.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        thread.addView(response, spaced(4));
+        mid.addView(thread, new LinearLayout.LayoutParams(0, Widgets.MATCH, 1f));
 
-        LinearLayout conn = new LinearLayout(this);
-        conn.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout conn = vertical();
+        actions = vertical();
+        conn.addView(actions);
         pcRow = connRow(conn, Glyph.Kind.INPUTS, "PC pairing");
         linkRow = connRow(conn, Glyph.Kind.ASSISTANT, "PC gateway");
+        providerRow = connRow(conn, Glyph.Kind.ASSISTANT, "Claude Code on PC");
+        setRow(providerRow, "Requires PC link", Theme.MUTED_GRAY);
         keyRow = connRow(conn, Glyph.Kind.INFO, "Device key");
         Row local = connRow(conn, Glyph.Kind.TV, "Local TV commands");
-        setRow(local, "Available", Theme.SUCCESS);
-        providerRow = connRow(conn, Glyph.Kind.ASSISTANT, "Claude Code");
-        setRow(providerRow, "Requires PC link", Theme.MUTED_GRAY);
-        actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams al = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
-        al.topMargin = t.dp(6);
-        conn.addView(actions, al);
-        ScrollView connection = new ScrollView(this);
-        connection.setFocusable(false);
-        connection.addView(panel("PC connection", conn));
-        mid.addView(connection, new LinearLayout.LayoutParams(t.dp(245), Widgets.MATCH));
-        LinearLayout.LayoutParams ml = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
-        ml.topMargin = t.dp(12);
-        col.addView(mid, ml);
+        setRow(local, "Available", Theme.SOFT_WHITE);
+        conn.addView(button("Clear TV history", this::confirmClear), spaced(4));
+        commandList = vertical();
+        buildCommands();
+        conn.addView(commandList, spaced(7));
+        ScrollView side = new ScrollView(this);
+        side.setSmoothScrollingEnabled(!t.reducedMotion);
+        side.setFocusable(false);
+        side.addView(panel("Connection & commands", conn));
+        LinearLayout.LayoutParams sideSize = new LinearLayout.LayoutParams(t.dp(225), Widgets.MATCH);
+        sideSize.leftMargin = t.dp(10);
+        mid.addView(side, sideSize);
+        LinearLayout.LayoutParams midSize = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
+        midSize.topMargin = t.dp(6);
+        dashboard.addView(mid, midSize);
 
-        // bottom: command box + response
-        LinearLayout bottom = new LinearLayout(this);
-        bottom.setGravity(Gravity.CENTER_VERTICAL);
-        bottom.setPadding(t.dp(16), t.dp(10), t.dp(16), t.dp(10));
-        bottom.setBackground(t.glass(Theme.R_PANEL, 0.8f));
-        input = field("Type a command, e.g. \"open YouTube\"", InputType.TYPE_CLASS_TEXT);
-        input.setImeOptions(EditorInfo.IME_ACTION_GO);
-        input.setOnEditorActionListener((v, actionId, e) -> {
-            boolean go = actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE
-                    || (e != null && e.getKeyCode() == KeyEvent.KEYCODE_ENTER && e.getAction() == KeyEvent.ACTION_DOWN);
-            if (go) runTyped(v.getText().toString());
-            return go;
+        LinearLayout compose = vertical();
+        compose.setPadding(t.dp(11), t.dp(7), t.dp(11), t.dp(7));
+        compose.setBackground(t.glass(Theme.R_PANEL, .88f));
+        LinearLayout composer = new LinearLayout(this);
+        composer.setGravity(Gravity.CENTER_VERTICAL);
+        input = field("Ask a question or type a TV command", InputType.TYPE_CLASS_TEXT);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(2000)});
+        input.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        input.setOnEditorActionListener((v, actionId, event) -> {
+            boolean submit = actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_DONE
+                    || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN);
+            if (submit) runTyped(v.getText().toString());
+            return submit;
         });
-        // Up from the command box reads the conversation (default focus search picked the command list).
         convo.setId(View.generateViewId());
         input.setNextFocusUpId(convo.getId());
-        bottom.addView(input, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f));
-        response = t.text(this, Theme.T_BODY, Theme.SOFT_WHITE, Theme.FONT_REGULAR);
-        response.setText("Select a command, or type one. Back returns Home.");
-        response.setMaxLines(2);
-        LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f);
-        rl.leftMargin = t.dp(20);
-        bottom.addView(response, rl);
-        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
-        bl.topMargin = t.dp(12);
-        col.addView(bottom, bl);
+        composer.addView(input, new LinearLayout.LayoutParams(0, t.dp(40), 1f));
+        send = button("Send", () -> runTyped(input.getText().toString()));
+        composer.addView(send, pillSize());
+        mic = button("Talk", () -> { if (voice.recognizing()) voice.cancelRecognition(); else voice.startRecognition(); });
+        android.graphics.drawable.Drawable micGlyph = getResources().getDrawable(android.R.drawable.ic_btn_speak_now, getTheme()).mutate();
+        micGlyph.setTint(Theme.SOFT_WHITE);
+        micGlyph.setBounds(0, 0, t.dp(21), t.dp(21));
+        mic.setCompoundDrawables(micGlyph, null, null, null);
+        mic.setCompoundDrawablePadding(t.dp(5));
+        composer.addView(mic, pillSize());
+        stopReply = button("Stop response", session::abort);
+        composer.addView(stopReply, pillSize());
+        compose.addView(composer);
+        LinearLayout audio = new LinearLayout(this);
+        audio.setGravity(Gravity.CENTER_VERTICAL);
+        voiceStatus = t.text(this, Theme.T_CAPTION, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
+        voiceStatus.setMaxLines(2);
+        voiceStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        audio.addView(voiceStatus, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f));
+        speakToggle = button("", () -> voice.setSpeakEnabled(!voice.speakEnabled()));
+        audio.addView(speakToggle, w.wrap());
+        silence = button("Stop speaking", voice::stopSpeaking);
+        audio.addView(silence, w.wrap());
+        compose.addView(audio, spaced(4));
+        dashboard.addView(compose, spaced(8));
 
         overlay = buildOverlay();
         overlay.setVisibility(View.GONE);
         root.addView(overlay, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         return root;
+    }
+
+    private LinearLayout vertical() {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        return column;
+    }
+
+    private LinearLayout.LayoutParams spaced(int top) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
+        p.topMargin = t.dp(top);
+        return p;
+    }
+
+    private LinearLayout.LayoutParams pillSize() {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(Widgets.WRAP, t.dp(40));
+        p.leftMargin = t.dp(6);
+        return p;
+    }
+
+    private TextView button(String title, Runnable click) {
+        TextView b = t.text(this, Theme.T_NAV, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        b.setText(title);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(t.dp(10), t.dp(5), t.dp(10), t.dp(5));
+        b.setBackground(t.glass(Theme.R_PILL, .88f));
+        w.focusable(b, Theme.R_PILL, null, true);
+        b.setOnClickListener(v -> click.run());
+        return b;
+    }
+
+    private void enable(View view, boolean enabled) {
+        view.setEnabled(enabled);
+        view.setFocusable(enabled);
+        view.setAlpha(enabled ? 1f : .55f);
+    }
+
+    private void renderVoice() {
+        if (mic == null || silence == null || voice == null) return;
+        mic.setText(voice.recognizing() ? "Cancel" : "Talk");
+        mic.setContentDescription(voice.recognizing() ? "Cancel speech recognition" : "Push to talk");
+        enable(mic, voice.recognizing() || voice.hasRecognizer());
+        String status = voice.status();
+        if (voice.hasRecognizer() && !status.contains("online")) status += " Recognition may use an online service.";
+        voiceStatus.setText(status);
+        speakToggle.setText(voice.speakEnabled() ? "Speak replies on" : "Speak replies off");
+        enable(silence, voice.speaking());
     }
 
     private FrameLayout buildOverlay() {
@@ -358,19 +441,22 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     // ------------------------------------------------------------------ JARVIS state → UI
 
     private void render(JarvisSession.State s, String detail) {
+        boolean actionHadFocus = actions.hasFocus();
         jarvisState = s;
+        if (s != JarvisSession.State.CONNECTED) { setResponding(false); liveReply = null; }
         String keyInfo = creds.keyProtection();
         setRow(keyRow, keyInfo != null ? keyInfo : "Not created", keyInfo != null ? Theme.SUCCESS : Theme.MUTED_GRAY);
         actions.removeAllViews();
         switch (s) {
             case CONNECTED:
+                if (pairingNewPc) { eraseHistory(); pairingNewPc = false; }
                 if (detail != null && !detail.isEmpty()) assistantName = detail;
                 chip(assistantName + " connected", Theme.SUCCESS);
                 setRow(pcRow, "Paired", Theme.SUCCESS);
                 setRow(linkRow, "Online · pinned TLS", Theme.SUCCESS);
                 setRow(providerRow, ClaudeCodeStatus.UNKNOWN.label, Theme.MUTED_GRAY);
                 label("ONLINE", Theme.HOLO_BLUE);
-                action(Glyph.Kind.ASSISTANT, "New conversation", session::newConversation);
+                action(Glyph.Kind.ASSISTANT, "New PC conversation", this::confirmReset);
                 action(Glyph.Kind.INFO, "Disconnect", session::disconnect);
                 action(Glyph.Kind.GEAR, "Forget this PC", this::forget);
                 if (overlay.getVisibility() == View.VISIBLE) closeOverlay(false);
@@ -392,6 +478,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                         + detail + ".", false);
                 break;
             case OFFLINE:
+                pairingNewPc = false;
                 chip(assistantName + " offline", Theme.WARNING);
                 setRow(pcRow, creds.load() == null ? "Not paired" : "Paired", Theme.MUTED_GRAY);
                 setRow(linkRow, "Offline", Theme.WARNING);
@@ -411,6 +498,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 if (overlay.getVisibility() == View.VISIBLE && reverifyMode) overlayStatus(detail, true);
                 break;
             case REVOKED:
+                eraseHistory();
                 notPaired();
                 chip("Pairing revoked", Theme.ERROR);
                 setRow(pcRow, "Revoked by PC", Theme.ERROR);
@@ -426,6 +514,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 overlayStatus(detail, true);
                 break;
             case PAIRING_FAILED:
+                pairingNewPc = false;
                 if (creds.load() == null) notPaired();
                 overlayStatus(detail, true);
                 break;
@@ -433,6 +522,10 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
             default:
                 notPaired();
                 break;
+        }
+        if (actionHadFocus && overlay.getVisibility() != View.VISIBLE) {
+            View target = actions.getChildCount() == 0 ? input : actions.getChildAt(0);
+            target.requestFocus();
         }
     }
 
@@ -451,15 +544,22 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     }
 
     private void reply(String state, String text) {
+        if (!"busy".equals(state) && !"delta".equals(state)) setResponding(false);
         switch (state) {
+            case "idle":
+                reactor.setState(ReactorView.State.IDLE);
+                label("ONLINE", Theme.HOLO_BLUE);
+                return;
             case "busy":
+                setResponding(true);
                 reactor.setState(ReactorView.State.WORKING);
-                label("THINKING…", Theme.PULSE_CYAN);
+                label("THINKING…", Theme.SOFT_WHITE);
                 if (text != null && !text.isEmpty()) say(text, false);
                 break;
             case "delta":
+                setResponding(true);
                 reactor.setState(ReactorView.State.WORKING);
-                label("ANSWERING…", Theme.PULSE_CYAN);
+                label("ANSWERING…", Theme.SOFT_WHITE);
                 if (liveReply == null) liveReply = addMessage(false, "");
                 liveReply.setText(TvSuggestion.clean(text));
                 scrollToEnd();
@@ -468,7 +568,11 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 reactor.setState(ReactorView.State.IDLE);
                 label("ONLINE", Theme.HOLO_BLUE);
                 if (liveReply == null) liveReply = addMessage(false, "");
-                liveReply.setText(TvSuggestion.clean(text));
+                String completed = TvSuggestion.clean(text);
+                liveReply.setText(completed);
+                history.append("assistant", completed);
+                persistHistory();
+                if (visible && !completed.isEmpty()) voice.speakReply(completed);
                 liveReply = null;
                 TvSuggestion sug = TvSuggestion.find(text);
                 if (sug != null) suggestionButton(sug);
@@ -492,11 +596,64 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
 
     // ------------------------------------------------------------------ conversation
 
+    private void setResponding(boolean active) {
+        responding = active;
+        if (stopReply == null) return;
+        boolean returnFocus = !active && stopReply.hasFocus();
+        boolean focusStop = active && send.hasFocus();
+        enable(stopReply, active && jarvisState == JarvisSession.State.CONNECTED);
+        if (focusStop) stopReply.requestFocus();
+        enable(send, !active);
+        if (returnFocus) input.requestFocus();
+    }
+
+    private void persistHistory() {
+        localChat.edit().putString("turns", history.encode()).apply();
+    }
+
+    private void displayHistory() {
+        messages.removeAllViews();
+        liveReply = null;
+        for (String[] m : history.entries()) addMessage("user".equals(m[0]), m[1]);
+        hintMessage();
+    }
+
+    private void eraseHistory() {
+        history = new ChatHistory();
+        localChat.edit().clear().apply();
+        displayHistory();
+    }
+
+    private void confirmClear() {
+        if (responding) { say("Stop the response before clearing history.", false); return; }
+        confirm("Clear history on this TV?", "The PC keeps its own conversation. This TV will stop importing those earlier messages.",
+                "Clear TV history", () -> {
+                    voice.stopSpeaking();
+                    history.clearOnTv();
+                    persistHistory();
+                    displayHistory();
+                    say("TV history cleared.", false);
+                });
+    }
+
+    private void confirmReset() {
+        if (responding) { say("Stop the response before starting a new conversation.", false); return; }
+        confirm("Start a new PC conversation?", "This resets the paired PC’s TV conversation and clears the copy on this TV.",
+                "New conversation", () -> { voice.stopSpeaking(); session.newConversation(); });
+    }
+
+    private void confirm(String title, String explanation, String action, Runnable accepted) {
+        AlertDialog d = new AlertDialog.Builder(this).setTitle(title).setMessage(explanation)
+                .setNegativeButton("Cancel", null).setPositiveButton(action, (dialog, which) -> accepted.run()).show();
+        d.getWindow().setBackgroundDrawable(t.glass(Theme.R_PANEL, .98f));
+        d.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus();
+    }
+
     private TextView addMessage(boolean user, String text) {
-        while (messages.getChildCount() >= MAX_MESSAGES * 2) messages.removeViewAt(0);
+        while (messages.getChildCount() >= ChatHistory.LIMIT * 2) messages.removeViewAt(0);
         if (messages.getChildCount() == 1 && !(messages.getChildAt(0).getTag() instanceof String)) messages.removeAllViews();
-        TextView who = t.text(this, Theme.T_CAPTION, user ? Theme.MUTED_GRAY : Theme.PULSE_CYAN, Theme.FONT_MEDIUM);
-        who.setText(user ? "YOU" : assistantName.toUpperCase());
+        TextView who = t.text(this, Theme.T_CAPTION, user ? Theme.MUTED_GRAY : Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        who.setText(user ? "YOU" : "ASSISTANT");
         who.setLetterSpacing(0.14f);
         who.setTag("msg");
         LinearLayout.LayoutParams wl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
@@ -516,7 +673,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     private void hintMessage() {
         if (messages.getChildCount() > 0) return;
         TextView m = t.text(this, Theme.T_BODY, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
-        m.setText("Ask " + assistantName + " anything. TV commands like \"open YouTube\" still run on the TV.");
+        m.setText("Type a local command such as “open Downloads.” To ask your PC assistant a question, connect your PC.");
         messages.addView(m, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
     }
 
@@ -537,7 +694,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     private void scrollToEnd() {
         // scrollTo, not fullScroll: fullScroll also moves focus into the conversation, which took the
         // remote's focus away from the command list whenever history loaded (found on the TV).
-        convo.post(() -> convo.scrollTo(0, messages.getBottom()));
+        if (!convo.hasFocus()) convo.post(() -> convo.scrollTo(0, messages.getBottom()));
     }
 
     // ------------------------------------------------------------------ pairing overlay
@@ -579,10 +736,12 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
             return;
         }
         creds.rememberHost(host, port);
+        pairingNewPc = true;
         session.pair(host, port, code);
     }
 
     private void closeOverlay(boolean cancel) {
+        if (cancel) pairingNewPc = false;
         dashboard.setDescendantFocusability(android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS);
         dashboard.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         overlay.setVisibility(View.GONE);
@@ -598,8 +757,9 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     }
 
     private void forget() {
+        voice.stopSpeaking();
         session.forget();
-        messages.removeAllViews();
+        eraseHistory();
         say("This TV forgot the PC. Its key and token were deleted.", false);
     }
 
@@ -610,6 +770,7 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         appCommand("com.google.android.youtube.tv", "Open YouTube");
         appCommand("com.plexapp.android", "Open Plex");
         command(Glyph.Kind.GRID, "Open All Apps", () -> openPanel("apps", "Opening All Apps"));
+        command(Glyph.Kind.DOWNLOAD, "Open Downloads", () -> openPanel("downloads", "Opening Downloads"));
         command(Glyph.Kind.INPUTS, "Show Inputs", () -> openPanel("inputs", "Opening Inputs"));
         // One input shortcut: an input whose device reports its name over HDMI-CEC, else the first one Android
         // reports as connected (CEC names disappear while e.g. a Fire TV Stick is asleep).
@@ -668,10 +829,15 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
     }
 
     private void runTyped(String text) {
+        if (text.trim().isEmpty()) { say("Type a question or select Talk.", false); return; }
         CommandParser.Result r = parse(text);
+        android.view.inputmethod.InputMethodManager ime = getSystemService(android.view.inputmethod.InputMethodManager.class);
+        if (ime != null) ime.hideSoftInputFromWindow(input.getWindowToken(), 0);
         switch (r.kind) {
             case HOME: goHome(); break;
             case ALL_APPS: openPanel("apps", "Opening All Apps"); break;
+            case DOWNLOADS: openPanel("downloads", "Opening Downloads"); break;
+            case DOWNLOAD_LIBRARY: openPanel("downloads:library", "Opening Manage Downloads"); break;
             case INPUTS: openPanel("inputs", "Opening Inputs"); break;
             case SETTINGS: openPanel("settings", "Opening Settings"); break;
             case WALLPAPERS: openPanel("wallpapers", "Opening Wallpapers"); break;
@@ -684,10 +850,15 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
                 String q = text.trim();
                 if (q.isEmpty()) return;
                 if (jarvisState == JarvisSession.State.CONNECTED) {
+                    if (responding) { say("Wait for the reply or select Stop response.", false); return; }
+                    voice.stopSpeaking();
+                    setResponding(true);
+                    history.append("user", q);
+                    persistHistory();
                     addMessage(true, q);
                     input.setText("");
                     reactor.setState(ReactorView.State.WORKING);
-                    label("SENDING…", Theme.PULSE_CYAN);
+                    label("SENDING…", Theme.SOFT_WHITE);
                     session.send(q);
                 } else {
                     say("JARVIS isn't connected, so I can only run TV commands, like \"open YouTube\" or \"inputs\".", true);

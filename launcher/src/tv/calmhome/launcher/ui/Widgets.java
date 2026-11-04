@@ -151,7 +151,7 @@ public final class Widgets {
             chip.setOutlineAmbientShadowColor(Theme.ELECTRIC_BLUE);
         }
         chip.setOnFocusChangeListener((v, has) -> {
-            v.setBackground(has ? t.outlined(Theme.withAlpha(Theme.ELECTRIC_BLUE, 0.28f), Theme.ELECTRIC_BLUE, 2, Theme.R_CHIP) : idle);
+            v.setBackground(has ? t.outlined(0xED555A60, Theme.ELECTRIC_BLUE, 2, Theme.R_CHIP) : idle);
             v.animate().scaleX(has && !t.reducedMotion ? 1.05f : 1f).scaleY(has && !t.reducedMotion ? 1.05f : 1f)
                     .translationZ(has ? t.dp(t.glowDp * 0.6f) : 0).setDuration(t.focusMs()).start();
         });
@@ -169,12 +169,13 @@ public final class Widgets {
         v.setFocusable(true);
         v.setClickable(true);
         v.setContentDescription(text);
-        final Drawable idle = current ? t.glass(Theme.R_PILL, .82f) : null;
+        final Drawable idle = current ? t.raised(Theme.R_PILL, false) : null;
         v.setBackground(idle);
         v.setOnClickListener(click);
         v.setOnFocusChangeListener((view, has) -> {
-            view.setBackground(has ? t.outlined(0xEE47596B, Theme.ELECTRIC_BLUE, 2, Theme.R_PILL) : idle);
-            v.setTextColor(has || current ? Theme.SOFT_WHITE : Theme.withAlpha(Theme.SOFT_WHITE, 0.82f));
+            view.setBackground(has ? t.raised(Theme.R_PILL, true) : idle);
+            v.setTextColor(has ? Theme.DEEP_BLACK : Theme.SOFT_WHITE);
+            for (Drawable d : v.getCompoundDrawablesRelative()) if (d instanceof Glyph) d.setTint(has ? Theme.DEEP_BLACK : Theme.SOFT_WHITE);
         });
         return v;
     }

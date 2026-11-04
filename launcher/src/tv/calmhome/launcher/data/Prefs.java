@@ -40,12 +40,26 @@ public final class Prefs {
     public boolean labelsAlways() { return sp.getBoolean("zp_labels_always", false); }
     public void setLabelsAlways(boolean v) { sp.edit().putBoolean("zp_labels_always", v).apply(); }
 
+    public List<String> recentlyOpened() { return DockList.parse(sp.getString("zp_recent_apps", "")); }
+    public void recordOpened(String pkg) {
+        List<String> updated = tv.calmhome.launcher.core.AppLibrary.record(recentlyOpened(), pkg);
+        sp.edit().putString("zp_recent_apps", DockList.serialize(updated)).apply();
+    }
+
+    public boolean usePhotoBackdrop() {
+        return sp.getBoolean("zp_photo_backdrop", sp.contains("zp_wp_picked") || sp.contains("zp_wp_collection"));
+    }
+    public void setPhotoBackdrop(boolean enabled) { sp.edit().putBoolean("zp_photo_backdrop", enabled).apply(); }
+
     // ---- appearance
     public boolean showGreeting() { return sp.getBoolean("zp_show_greeting", true); }
     public void setShowGreeting(boolean v) { sp.edit().putBoolean("zp_show_greeting", v).apply(); }
 
     public boolean showClock() { return sp.getBoolean("zp_show_clock", true); }
     public void setShowClock(boolean v) { sp.edit().putBoolean("zp_show_clock", v).apply(); }
+
+    public boolean showDate() { return sp.getBoolean("zp_show_date", true); }
+    public void setShowDate(boolean value) { sp.edit().putBoolean("zp_show_date", value).apply(); }
 
     public boolean reducedMotion() { return sp.getBoolean("zp_reduced_motion", false); }
     public void setReducedMotion(boolean v) { sp.edit().putBoolean("zp_reduced_motion", v).apply(); }
@@ -81,7 +95,7 @@ public final class Prefs {
 
     /** File of the wallpaper the user picked (shown first; stays put when rotation is Static). */
     public String wallpaperPicked() { return sp.getString("zp_wp_picked", null); }
-    public void setWallpaperPicked(String v) { sp.edit().putString("zp_wp_picked", v).apply(); }
+    public void setWallpaperPicked(String v) { sp.edit().putString("zp_wp_picked", v).putBoolean("zp_photo_backdrop", true).apply(); }
 
     // ---- assistant
     public boolean assistantEnabled() { return sp.getBoolean("zp_assistant", true); }

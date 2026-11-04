@@ -10,7 +10,7 @@ import android.view.View;
 
 /**
  * ZeroPulse "Wordmark + Pulse" logo, drawn as vectors so it is crisp at any size:
- * a blue ECG-style pulse line, "ZeroPulse" in Soft White and a suffix ("TV") in Electric Blue.
+ * the original ECG-style pulse, pearl wordmark and silver suffix.
  * The same geometry is used for the SVG masters in branding/.
  */
 public class PulseLogo extends View {

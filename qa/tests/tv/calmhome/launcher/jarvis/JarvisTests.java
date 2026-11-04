@@ -39,6 +39,7 @@ public class JarvisTests {
         signatures();
         json();
         provider();
+        chatHistory();
         suggestions();
         websocket();
         plaintextRefused();
@@ -46,6 +47,26 @@ public class JarvisTests {
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
         System.exit(failed == 0 ? 0 : 1);
+    }
+
+    static void chatHistory() {
+        ChatHistory h = ChatHistory.read("{broken");
+        eq("history: invalid local data", 0, h.entries().size());
+        h.append("tool", "private payload");
+        for (int i = 0; i < 40; i++) h.append("user", "Question " + i);
+        eq("history: bounded transcript", 30, h.entries().size());
+        eq("history: oldest retained", "Question 10", h.entries().get(0)[1]);
+        h.append("assistant", "hello\nworld");
+        h = ChatHistory.read(h.encode());
+        eq("history: survives recreation", "hello\nworld", h.entries().get(29)[1]);
+        h.clearOnTv();
+        h = ChatHistory.read(h.encode());
+        check("history: no re-import after clearing offline", !h.syncFromGateway(
+                java.util.Collections.singletonList(new String[]{"user", "removed"})) && h.entries().isEmpty());
+        check("history: empty remote reset permits fresh sync", h.syncFromGateway(java.util.Collections.emptyList()));
+        h.syncFromGateway(Arrays.asList(new String[]{"tool", "ignored"}, new String[]{"assistant", "Hi [[tv:home]]"}));
+        eq("history: tools and markup excluded", 1, h.entries().size());
+        eq("history: text only", "Hi", h.entries().get(0)[1]);
     }
 
     static void pairingCode() {

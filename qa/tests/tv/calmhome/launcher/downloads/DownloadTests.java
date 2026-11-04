@@ -65,9 +65,17 @@ public final class DownloadTests {
         } finally { Files.deleteIfExists(local.toPath()); }
 
         DownloadRecord r = new DownloadRecord();
+        r.total = -1; r.bytes = 1024; check(r.percentTransferred() == -1);
+        r.total = 0; check(r.percentTransferred() == -1);
+        r.total = 4096; check(r.percentTransferred() == 25);
+        r.bytes = 0; check(r.percentTransferred() == 0);
+        r.bytes = 4095; check(r.percentTransferred() == 99);
+        r.bytes = 4096; check(r.percentTransferred() == 100);
+        r.bytes = Long.MAX_VALUE; check(r.percentTransferred() == 100);
         r.attempt = 2;
         for (DownloadRecord.State s : DownloadRecord.State.values()) {
             r.state = s;
+            check(r.inActiveQueue() == (s == QUEUED || s == DOWNLOADING || s == VERIFYING || s == AWAITING_APPROVAL));
             check(r.acceptsAttempt(2) == (s == QUEUED || s == DOWNLOADING || s == VERIFYING));
             check(!r.acceptsAttempt(1));
             r.sessionId = 10;

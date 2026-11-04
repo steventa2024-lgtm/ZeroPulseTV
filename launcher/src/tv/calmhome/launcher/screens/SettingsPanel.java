@@ -175,15 +175,17 @@ public class SettingsPanel extends Panel {
     // ------------------------------------------------------------------ categories
 
     private void appearance() {
+        add(rows.toggle("Photo wallpaper on Home", prefs.usePhotoBackdrop(), v -> { prefs.setPhotoBackdrop(v); host.refreshHome(); }));
         add(rows.toggle("Show greeting", prefs.showGreeting(), v -> { prefs.setShowGreeting(v); host.refreshHome(); }));
         add(rows.toggle("Show clock", prefs.showClock(), v -> { prefs.setShowClock(v); host.refreshHome(); }));
+        add(rows.toggle("Show date below clock", prefs.showDate(), v -> { prefs.setShowDate(v); host.refreshHome(); }));
         String[] dims = {"0%", "10%", "20%", "30%", "40%", "50%", "60%"};
         add(rows.choice("Wallpaper dimming", dims, prefs.dimPercent() / 10, k -> { prefs.setDimPercent(k * 10); host.refreshHome(); }));
         add(rows.choice("UI scale", Prefs.UI_SCALE_NAMES, prefs.uiScaleIndex(), k -> {
             prefs.setUiScaleIndex(k);
             host.rebuild("settings:appearance");
         }));
-        add(rows.choice("Focus glow", new String[]{"Low", "Medium", "High"}, prefs.focusIntensity(), k -> {
+        add(rows.choice("Focus emphasis", new String[]{"Low", "Medium", "High"}, prefs.focusIntensity(), k -> {
             prefs.setFocusIntensity(k);
             host.rebuild("settings:appearance");
         }));
@@ -195,7 +197,7 @@ public class SettingsPanel extends Panel {
             prefs.setReducedMotion(v);
             host.rebuild("settings:appearance");
         }));
-        note("Theme: Midnight Blue (the only theme in this version).");
+        note("Graphite glass · silver focus outline");
     }
 
     private void wallpapers() {
@@ -221,7 +223,7 @@ public class SettingsPanel extends Panel {
         add(rows.action("Photo credits & licenses", null, false, v -> host.open(new AboutPanel(host))));
         WallpaperCatalog.Entry e = host.stage().current();
         if (e != null) note("Now showing: " + e.caption());
-        note("Photo credits always stay on Home: the Creative Commons licenses require attribution.");
+        note("Photo credits appear wherever a wallpaper is shown.");
     }
 
     private void dock() {

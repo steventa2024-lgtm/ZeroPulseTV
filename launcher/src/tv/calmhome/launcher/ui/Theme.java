@@ -19,15 +19,15 @@ import tv.calmhome.launcher.data.Prefs;
 public final class Theme {
 
     // ---- Brand colors
-    public static final int DEEP_BLACK = 0xFF0A0E14;
-    public static final int MIDNIGHT_NAVY = 0xFF182331;
-    public static final int PANEL_NAVY = 0xFF263342;
-    public static final int ELECTRIC_BLUE = 0xFFBFDAEB;
-    public static final int PULSE_CYAN = 0xFF35D6FF;
-    public static final int HOLO_BLUE = 0xFFABBBC9;
-    public static final int SOFT_WHITE = 0xFFF5F7FA;
-    public static final int MUTED_GRAY = 0xFFBEC8D3;
-    public static final int BORDER = 0xFF768795;
+    public static final int DEEP_BLACK = 0xFF0B0E12;
+    public static final int MIDNIGHT_NAVY = 0xFF151A20;
+    public static final int PANEL_NAVY = 0xFF252B32;
+    public static final int ELECTRIC_BLUE = 0xFFF1F2F4;
+    public static final int PULSE_CYAN = 0xFFF6F7F8;
+    public static final int HOLO_BLUE = 0xFFCED2D7;
+    public static final int SOFT_WHITE = 0xFFF6F7F8;
+    public static final int MUTED_GRAY = 0xFFBEC5CD;
+    public static final int BORDER = 0xFF797E85;
     public static final int SUCCESS = 0xFF28C76F;
     public static final int WARNING = 0xFFF5A623;
     public static final int ERROR = 0xFFFF5C7A;
@@ -55,7 +55,7 @@ public final class Theme {
         scale = p.uiScale();
         int intensity = p.focusIntensity();             // 0 low, 1 medium, 2 high
         focusScale = new float[]{1.015f, 1.025f, 1.035f}[intensity];
-        glowDp = new float[]{2f, 4f, 6f}[intensity];
+        glowDp = new float[]{1f, 1.5f, 2f}[intensity];
         accent = new float[]{0.55f, 0.8f, 1f}[p.accentIntensity()];
         float systemAnim = Settings.Global.getFloat(c.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
         reducedMotion = p.reducedMotion() || systemAnim == 0f;
@@ -127,13 +127,17 @@ public final class Theme {
         return g;
     }
 
-    /** Glass panel used over wallpapers: translucent Panel Navy with a hairline border. */
+    /** Pearl reflection, neutral graphite body and a thin silver rim. */
     public GradientDrawable glass(float radiusDp, float opacity) {
+        return new GlassSurface(new int[]{withAlpha(0xFF747980, opacity), withAlpha(0xFF40464D, opacity),
+                withAlpha(0xFF282C32, opacity), withAlpha(0xFF42464C, opacity)}, dp(radiusDp), Math.max(1, dp(1)));
+    }
+
+    public GradientDrawable raised(float radiusDp, boolean focused) {
         GradientDrawable surface = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{withAlpha(0xFF637585, opacity), withAlpha(PANEL_NAVY, opacity),
-                        withAlpha(0xFF16212D, Math.min(1f, opacity + .12f))});
+                focused ? new int[]{0xFFF3F4F5, 0xFFC8CBD0, 0xFFABB0B7} : new int[]{0xFF868B92, 0xFF52575F, 0xFF696E75});
         surface.setCornerRadius(dp(radiusDp));
-        surface.setStroke(Math.max(1, dp(1)), withAlpha(0xFFE0EBF4, .45f));
+        surface.setStroke(Math.max(1, dp(focused ? 2 : 1)), focused ? SOFT_WHITE : 0xEEDEE0E3);
         return surface;
     }
 

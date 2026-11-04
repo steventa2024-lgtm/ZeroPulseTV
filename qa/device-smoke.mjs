@@ -17,8 +17,8 @@ const adb = (...args) => execFileSync(process.env.ADB || 'adb', ['-s', serial, .
 const shell = (...args) => adb('shell', ...args).toString();
 assert.equal(adb('get-state').toString().trim(), 'device', 'Device must already be authorized');
 const version = shell('dumpsys', 'package', pkg);
-assert.match(version, /versionName=3\.0\.0-beta\.1\b/, 'Install the approved v3 candidate before running this test');
-assert.ok(Number(version.match(/versionCode=(\d+)/)?.[1]) > 2201, 'Expected a newer version than the TCL baseline');
+assert.match(version, /versionName=3\.0\.0-beta\.2\b/, 'Install the approved v3 candidate before running this test');
+assert.ok(Number(version.match(/versionCode=(\d+)/)?.[1]) === 3002, 'Expected the graphite candidate');
 
 const output = process.argv[3] || fileURLToPath(new URL('./device-evidence/' + Date.now() + '/', import.meta.url));
 mkdirSync(output, { recursive: true });
@@ -129,7 +129,7 @@ async function emulatorDisplayTest() {
     assert.equal(shell('settings','get','global','animator_duration_scale').trim(), '0');
     await pause(750);
     await open('Downloads');
-    await focus('Live Sports, browse sources');
+    await focus('Apps, browse sources');
     capture(native4k ? '13-4k-reduced-motion' : '13-fhd-reduced-motion', 'Download Center');
     const png = adb('exec-out', 'screencap', '-p');
     const dimensions = [png.readUInt32BE(16), png.readUInt32BE(20)];
@@ -155,9 +155,9 @@ async function emulatorDisplayTest() {
 async function fullNavigation() {
   capture('01-home', 'All Apps');
   await open('Downloads');
-  await focus('Live Sports, browse sources');
+  await focus('Apps, browse sources');
   capture('02-download-center', 'Download Center');
-  for (const [index, category] of ['Live Sports', 'Movies & TV', 'Anime'].entries()) {
+  for (const [index, category] of ['Apps', 'Movies & TV', 'Live TV', 'Games', 'Tools'].entries()) {
     const card = category + ', browse sources';
     await open(card);
     capture('03-category-' + index, 'Add a trusted source');
@@ -165,6 +165,17 @@ async function fullNavigation() {
     capture('04-source-editor-' + index, 'Save source');
     await backTo('Add a trusted source');
     await backTo(card);
+  }
+  await open('All Categories, browse sources');
+  capture('04-all-categories', 'Anime, manage sources');
+  await open('Anime, manage sources');
+  capture('04-retained-anime', 'Add a trusted source');
+  await backTo('Anime, manage sources');
+  await backTo('All Categories, browse sources');
+  for (const label of ['Install APK', 'File Manager', 'App Sources']) {
+    await open(label);
+    capture('04-dock-' + label.replaceAll(' ', '-'), label);
+    await backTo(label);
   }
   // An empty Go exercises validation without sending a network request or modifying the catalog.
   await open(/^Go\b/);
@@ -198,7 +209,7 @@ async function publishedRelease() {
   const url = 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk';
   const digest = 'ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401';
   await open('Downloads');
-  await focus('Enter a code or HTTPS link');
+  await focus('Enter a code or HTTPS link...');
   assert.equal(tree().focused.class, 'android.widget.EditText');
   shell('input', 'text', url);
   assert.ok(tree().nodes.some(n => n.text === url), 'Entered URL did not match the published release');
@@ -225,7 +236,7 @@ async function publishedRelease() {
   await open('Remove file and history');
   await open('Remove download');
   await open('Home');
-  assert.match(shell('dumpsys', 'package', pkg), /versionCode=3001\b/);
+  assert.match(shell('dumpsys', 'package', pkg), /versionCode=3002\b/);
   save('published-release.txt', ['PASS published HTTPS download through the launcher UI', 'Source ' + url,
     'SHA-256 ' + digest, 'Self-update refused; new test history entry removed; v3 retained.'].join('\n') + '\n');
 }

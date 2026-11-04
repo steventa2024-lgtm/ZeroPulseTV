@@ -85,6 +85,19 @@ public abstract class Panel {
 
     public void onClosed() { }
 
+    public void onPackagesChanged() { }
+
+    /** Small navigation token safe to restore after Android reclaims the launcher. */
+    public String restoreRoute() {
+        if (this instanceof AppsPanel) return "apps";
+        if (this instanceof InputsPanel) return "inputs";
+        if (this instanceof WallpapersPanel) return "wallpapers";
+        if (this instanceof SettingsPanel) return "settings";
+        if (this instanceof AboutPanel) return "about";
+        if (this instanceof DownloadPage) return this instanceof DownloadsPanel ? "downloads" : "downloads:library";
+        return null;
+    }
+
     private TextView wallpaperCredit;
 
     public void updateCredit(String caption) {
@@ -121,7 +134,7 @@ public abstract class Panel {
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{
                 Theme.withAlpha(Theme.DEEP_BLACK, 0.94f * shade), Theme.withAlpha(Theme.MIDNIGHT_NAVY, 0.88f * shade * shade),
                 Theme.withAlpha(Theme.DEEP_BLACK, 0.95f)});
-        f.setBackground(bg);
+        if (this instanceof WallpapersPanel) f.setBackground(bg);
 
         LinearLayout col = new LinearLayout(c);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -134,25 +147,20 @@ public abstract class Panel {
         navigation = new Navigation(host, tab);
         col.addView(navigation, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
         TextView h = t.text(c, Theme.T_HEADING, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
-        h.setPadding(0, t.dp(12), 0, 0);
+        h.setPadding(t.dp(2), t.dp(8), 0, 0);
         if (this instanceof DownloadsPanel) {
-            tv.calmhome.launcher.ui.Glyph icon = new tv.calmhome.launcher.ui.Glyph(
-                    tv.calmhome.launcher.ui.Glyph.Kind.DOWNLOAD, Theme.SOFT_WHITE);
-            icon.setBounds(0, 0, t.dp(29), t.dp(29));
-            h.setCompoundDrawablesRelative(icon, null, null, null);
-            h.setCompoundDrawablePadding(t.dp(10));
-            t.style(h, 32, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+            t.style(h, 28, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
         }
         h.setText(title);
         col.addView(h);
 
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f);
-        clp.topMargin = t.dp(6);
+        clp.topMargin = t.dp(3);
         col.addView(content, clp);
         wallpaperCredit = t.text(c, Theme.T_CAPTION, Theme.MUTED_GRAY, Theme.FONT_REGULAR);
         wallpaperCredit.setPadding(0, t.dp(3), 0, 0);
         if (host.stage().current() != null) updateCredit(host.stage().current().caption());
-        col.addView(wallpaperCredit);
+        if (this instanceof WallpapersPanel) col.addView(wallpaperCredit);
         f.addView(col, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
         return f;
     }

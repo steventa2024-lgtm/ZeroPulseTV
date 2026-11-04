@@ -46,6 +46,13 @@ public final class Apps {
         }
     }
 
+    public void invalidate(String pkg) { labelCache.remove(pkg); }
+
+    public int category(String pkg) {
+        try { return pm.getApplicationInfo(pkg, 0).category; }
+        catch (PackageManager.NameNotFoundException e) { return ApplicationInfo.CATEGORY_UNDEFINED; }
+    }
+
     public boolean installed(String pkg) {
         try {
             pm.getApplicationInfo(pkg, 0);
@@ -106,7 +113,9 @@ public final class Apps {
     /** Starts the app. Returns false (and starts nothing) if it can't be launched. */
     public boolean launch(String pkg) {
         Intent i = launchIntent(pkg);
-        return i != null && start(i);
+        if (i == null || !start(i)) return false;
+        new Prefs(c).recordOpened(pkg);
+        return true;
     }
 
     public boolean start(Intent i) {

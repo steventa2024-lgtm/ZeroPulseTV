@@ -89,7 +89,8 @@ public class JarvisIntegrationTests {
             states.add(s + "|" + detail);
         }
         public void onReply(String state, String text) { replies.add(state + "|" + text); }
-        public void onHistory(List<String[]> m) { }
+        volatile List<String[]> history = new ArrayList<>();
+        public void onHistory(List<String[]> m) { history = m; }
 
         boolean await(JarvisSession.State want, long ms) throws InterruptedException {
             long end = System.currentTimeMillis() + ms;
@@ -170,6 +171,18 @@ public class JarvisIntegrationTests {
         for (String r : rec.replies) if (r.startsWith("final|")) finalReply = r.substring(6);
         TvSuggestion sug = TvSuggestion.find(finalReply);
         check("chat: TV suggestion parsed as a button, not run", sug != null && sug.asCommand().equals("open YouTube"));
+
+        rec.replies.clear();
+        session.abort();
+        session.sync();
+        check("chat: Stop after a completed reply does not claim cancellation",
+                rec.replies.stream().anyMatch(r -> r.contains("no active generation to stop"))
+                        && !rec.replies.contains("aborted|"));
+        check("chat: authenticated PC history restores the completed exchange", rec.history.size() == 2
+                && "Status report".equals(rec.history.get(0)[1]));
+        session.newConversation();
+        session.sync();
+        check("chat: confirmed PC reset clears the TV snapshot", rec.history.isEmpty());
 
         // 4. The TV credential cannot call anything else.
         GatewayLink raw = GatewayLink.open("127.0.0.1", port, PinnedTrust.pinned(store.pairing.fingerprint), store.signer(),

@@ -19,7 +19,11 @@ public final class CatalogTests {
         reject(() -> new SourceEntry(Category.ANIME, "Two", "http://example.org/a.apk", "", ""));
         reject(() -> new SourceEntry(Category.MOVIES, "Title", "https://example.org", "1", "bad checksum"));
         reject(() -> new SourceEntry(Category.MOVIES, " ", "https://example.org", "1", ""));
-        System.out.println("Catalog tests: 10 passed");
+        check(Category.valueOf("SPORTS").title.equals("Live TV"));
+        check(Category.valueOf("ANIME").title.equals("Anime"));
+        check(Category.valueOf("MOVIES").title.equals("Movies & TV"));
+        check(Category.valueOf("TOOLS").title.equals("Tools"));
+        System.out.println("Catalog tests: 14 passed");
     }
     private static void check(boolean ok) { if (!ok) throw new AssertionError(); }
     private static void reject(Runnable f) {

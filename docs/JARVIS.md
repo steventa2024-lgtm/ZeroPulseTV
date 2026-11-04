@@ -6,7 +6,7 @@ OpenPulse gateway on a PC on your home network. Nothing about it is required for
 - No shared server, no account, no bundled language model, no paid API key needed by the TV.
 - Answers come from the model your OpenPulse gateway is configured with (for example a local Ollama model).
 - From the TV, JARVIS can only chat. It cannot read files, run commands or change settings on the PC.
-- Voice input is not implemented in 2.1.
+- Graphite uses Android’s speech activity for explicit dictation and optional system text-to-speech. [Assistant and Claude](GRAPHITE_V3_ASSISTANT_AND_CLAUDE.md)
 
 > **Availability:** JARVIS needs an OpenPulse gateway that includes the **TV link**. At the time of
 > v2.1.0-beta.1 the TV link is not yet in a public OpenPulse release, so JARVIS cannot be paired with a public

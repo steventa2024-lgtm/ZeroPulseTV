@@ -33,12 +33,25 @@ public class CoreTests {
 
     public static void main(String[] args) throws Exception {
         dock();
+        appLibrary();
         greeting();
         catalog(args.length > 0 ? args[0] : null);
         commands();
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
         System.exit(failed == 0 ? 0 : 1);
+    }
+
+    static void appLibrary() {
+        List<String> previous = Arrays.asList("a", "b", "c", "d", "e", "f");
+        eq("recent: successful repeat moves to front", Arrays.asList("c", "a", "b", "d", "e", "f"),
+                tv.calmhome.launcher.core.AppLibrary.record(previous, "c"));
+        eq("recent: new launch bounded to six", Arrays.asList("g", "a", "b", "c", "d", "e"),
+                tv.calmhome.launcher.core.AppLibrary.record(previous, "g"));
+        eq("recent: source order remains intact", "a", previous.get(0));
+        check("library: case-insensitive label search", tv.calmhome.launcher.core.AppLibrary.matches(" TUB ", "YouTube", "com.video"));
+        check("library: package matches", tv.calmhome.launcher.core.AppLibrary.matches("com.video", "Video", "com.video.tv"));
+        check("library: unknown search filters out", !tv.calmhome.launcher.core.AppLibrary.matches("other", "Video", "com.video.tv"));
     }
 
     static void dock() {
@@ -129,6 +142,10 @@ public class CoreTests {
         eq("cmd: youtube tv", "com.google.android.youtube.tvunplugged", CommandParser.parse("launch YouTube TV", apps, inputs).target);
         eq("cmd: disney plus symbol", "com.disney.disneyplus", CommandParser.parse("open disney+", apps, inputs).target);
         eq("cmd: switch to hdmi 2", "hdmi2", CommandParser.parse("switch to HDMI 2", apps, inputs).target);
+        eq("cmd: downloads", Kind.DOWNLOADS, CommandParser.parse("Open Downloads.", apps, inputs).kind);
+        eq("cmd: library", Kind.DOWNLOAD_LIBRARY, CommandParser.parse("Show my downloads", apps, inputs).kind);
+        eq("cmd: installed apps", Kind.ALL_APPS, CommandParser.parse("Show my installed applications.", apps, inputs).kind);
+        eq("cmd: cannot approve install", Kind.UNKNOWN, CommandParser.parse("Approve installing an APK", apps, inputs).kind);
         eq("cmd: antenna", Kind.SWITCH_INPUT, CommandParser.parse("antenna", apps, inputs).kind);
         eq("cmd: home", Kind.HOME, CommandParser.parse("go home", apps, inputs).kind);
         eq("cmd: all apps", Kind.ALL_APPS, CommandParser.parse("All Apps", apps, inputs).kind);

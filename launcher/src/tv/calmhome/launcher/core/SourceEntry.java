@@ -6,8 +6,12 @@ import tv.calmhome.launcher.downloads.DownloadPolicy;
 /** An explicitly saved owner source. Numeric shortcuts are local to this TV. */
 public final class SourceEntry {
     public enum Category {
-        SPORTS("Live Sports", "Sports & live TV apps"),
+        APPS("Apps", "Applications for your TV"),
         MOVIES("Movies & TV", "Movie & TV apps"),
+        // SPORTS is the persisted key used by existing live-TV sources and local APK indexes.
+        SPORTS("Live TV", "Live TV & sports apps"),
+        GAMES("Games", "Games for your TV"),
+        TOOLS("Tools", "Utilities for your TV"),
         ANIME("Anime", "Anime streaming apps");
         public final String title, subtitle;
         Category(String title, String subtitle) { this.title = title; this.subtitle = subtitle; }

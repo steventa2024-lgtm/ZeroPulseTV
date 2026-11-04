@@ -25,6 +25,8 @@ $tests = @(Get-ChildItem (Join-Path $root "qa\tests") -Recurse -Filter *.java | 
 if ($LASTEXITCODE -ne 0) { throw "test compile failed" }
 & java -cp $out CoreTests (Join-Path $root "launcher\assets\wallpapers\credits.tsv")
 $testExit = $LASTEXITCODE
+& java -cp $out tv.calmhome.launcher.core.VoiceTests
+if ($LASTEXITCODE -ne 0) { $testExit = 1 }
 & java -cp $out tv.calmhome.launcher.jarvis.JarvisTests (Join-Path $root "launcher\src")
 if ($LASTEXITCODE -ne 0) { $testExit = 1 }
 

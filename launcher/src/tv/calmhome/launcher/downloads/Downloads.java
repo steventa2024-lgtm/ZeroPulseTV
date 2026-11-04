@@ -181,6 +181,22 @@ public final class Downloads {
 
     File part(DownloadRecord r) { return new File(dir, r.id + "-" + r.attempt + ".part.apk"); }
     File apk(long id) { return new File(dir, id + ".apk"); }
+    public boolean hasFile(DownloadRecord r) { return r.inspected && apk(r.id).isFile(); }
+
+    /** Used off the UI thread, only after Android inspection and private file publication. */
+    @SuppressWarnings("deprecation")
+    public android.graphics.drawable.Drawable inspectedIcon(DownloadRecord r) {
+        if (!hasFile(r)) return null;
+        try {
+            String path = apk(r.id).getAbsolutePath();
+            android.content.pm.PackageManager pm = context.getPackageManager();
+            android.content.pm.PackageInfo info = pm.getPackageArchiveInfo(path, 0);
+            if (info == null || info.applicationInfo == null || info.applicationInfo.icon == 0) return null;
+            info.applicationInfo.sourceDir = path;
+            info.applicationInfo.publicSourceDir = path;
+            return info.applicationInfo.loadIcon(pm);
+        } catch (RuntimeException unavailable) { return null; }
+    }
     public synchronized boolean isInstalled(long id) {
         DownloadRecord r = store.find(id);
         return r != null && r.state == INSTALLED && installer.detect(r);

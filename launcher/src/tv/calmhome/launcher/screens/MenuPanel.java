@@ -73,7 +73,7 @@ public class MenuPanel extends Panel {
             row.setContentDescription(labels.get(i));
             final int idle = danger.get(i) ? Theme.ERROR : Theme.SOFT_WHITE;
             row.setOnFocusChangeListener((v, has) -> {
-                v.setBackground(has ? t.outlined(0xFF405264, Theme.ELECTRIC_BLUE, 2, 10) : null);
+                v.setBackground(has ? t.outlined(0xFF50545A, Theme.ELECTRIC_BLUE, 2, 10) : null);
                 ((TextView) v).setTextColor(has ? Theme.SOFT_WHITE : idle);
             });
             row.setOnClickListener(v -> {

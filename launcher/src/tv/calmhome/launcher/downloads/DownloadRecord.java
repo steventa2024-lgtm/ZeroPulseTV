@@ -21,4 +21,12 @@ public final class DownloadRecord {
     boolean transferActive() {
         return state == State.QUEUED || state == State.DOWNLOADING || state == State.VERIFYING;
     }
+
+    public boolean inActiveQueue() { return transferActive() || state == State.AWAITING_APPROVAL; }
+
+    /** -1 means the source did not advertise a usable size. */
+    public int percentTransferred() {
+        if (total <= 0 || bytes < 0) return -1;
+        return (int) Math.min(100, Math.floor(100d * bytes / total));
+    }
 }

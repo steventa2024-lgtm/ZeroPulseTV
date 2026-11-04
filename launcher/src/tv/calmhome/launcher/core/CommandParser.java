@@ -12,7 +12,7 @@ import java.util.Locale;
  */
 public final class CommandParser {
 
-    public enum Kind { HOME, ALL_APPS, INPUTS, SETTINGS, WALLPAPERS, OPEN_APP, SWITCH_INPUT, UNKNOWN }
+    public enum Kind { HOME, ALL_APPS, DOWNLOADS, DOWNLOAD_LIBRARY, INPUTS, SETTINGS, WALLPAPERS, OPEN_APP, SWITCH_INPUT, UNKNOWN }
 
     public static final class Result {
         public final Kind kind;
@@ -45,7 +45,9 @@ public final class CommandParser {
         if (s.isEmpty()) return new Result(Kind.UNKNOWN, null, null);
         switch (s) {
             case "home": case "go home": case "return home": return new Result(Kind.HOME, null, "Home");
-            case "apps": case "all apps": case "show apps": case "open apps": return new Result(Kind.ALL_APPS, null, "All Apps");
+            case "apps": case "all apps": case "show apps": case "open apps": case "open all apps": case "show my installed applications": return new Result(Kind.ALL_APPS, null, "All Apps");
+            case "downloads": case "open downloads": return new Result(Kind.DOWNLOADS, null, "Downloads");
+            case "show my downloads": case "manage downloads": return new Result(Kind.DOWNLOAD_LIBRARY, null, "Manage Downloads");
             case "inputs": case "show inputs": case "sources": return new Result(Kind.INPUTS, null, "Inputs");
             case "settings": case "open settings": return new Result(Kind.SETTINGS, null, "Settings");
             case "wallpapers": case "wallpaper": return new Result(Kind.WALLPAPERS, null, "Wallpapers");

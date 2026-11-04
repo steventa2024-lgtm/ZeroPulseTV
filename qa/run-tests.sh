@@ -13,6 +13,7 @@ while IFS= read -r -d '' file; do sources+=("$file"); done < <(
 mkdir "$BUILD_DIR/tests"
 javac -encoding UTF-8 -d "$BUILD_DIR/tests" "${sources[@]}"
 java -cp "$BUILD_DIR/tests" CoreTests "$ROOT/launcher/assets/wallpapers/credits.tsv"
+java -cp "$BUILD_DIR/tests" tv.calmhome.launcher.core.VoiceTests
 java -cp "$BUILD_DIR/tests" tv.calmhome.launcher.jarvis.JarvisTests "$ROOT/launcher/src"
 java -cp "$BUILD_DIR/tests" tv.calmhome.launcher.downloads.CatalogTests
 java -cp "$BUILD_DIR/tests" tv.calmhome.launcher.downloads.DownloadTests

@@ -3,123 +3,260 @@ package tv.calmhome.launcher.screens;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.graphics.drawable.GradientDrawable;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
-import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import tv.calmhome.launcher.R;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import tv.calmhome.launcher.core.SourceEntry;
+import tv.calmhome.launcher.core.SourceEntry.Category;
 import tv.calmhome.launcher.data.SourceCatalog;
 import tv.calmhome.launcher.downloads.DownloadPolicy;
-import tv.calmhome.launcher.ui.Theme;
 import tv.calmhome.launcher.ui.Glyph;
+import tv.calmhome.launcher.ui.Theme;
 import tv.calmhome.launcher.ui.Widgets;
 
-/** Native Download Center. Category artwork is local and independent of source availability. */
+/** Native, device-backed Download Center. No sample downloads or preconfigured APK links. */
 public final class DownloadsPanel extends DownloadPage {
     private static final String EXTERNAL_DOWNLOADER = "com.esaba.downloader";
+    // Editorial picks only. Every tile must also resolve to an installed, launchable package.
+    private static final List<String> FEATURED_PACKAGES = Arrays.asList("com.netflix.ninja",
+            "com.google.android.youtube.tv", "com.disney.disneyplus", "com.amazon.amazonvideo.livingroom",
+            "com.spotify.tv.android", "tv.pluto.android", "com.tubitv", "org.videolan.vlc", "org.xbmc.kodi", "com.plexapp.android");
     private EditText input;
     private TextView message;
+    private ActiveDownloads queue;
+    private LinearLayout shelf;
+    private List<String> shownPackages;
+
     public DownloadsPanel(Host host) { super(host); }
     public static Panel detail(Host host, long id) { return new DownloadDetailPanel(host, id); }
+    public static Panel library(Host host) { return new DownloadLibraryPanel(host); }
 
     @Override protected View build() {
-        body.addView(text("Choose an app category or enter a link from its developer.", Theme.T_BODY, false));
-        LinearLayout cards = new LinearLayout(c);
-        cards.setClipChildren(false);
-        body.addView(cards, spaced(12));
-        int[] pictures = {R.drawable.category_sports, R.drawable.category_movies, R.drawable.category_anime};
-        int[] ink = {0xE5106B54, 0xE5923F31, 0xE5176174};
-        Glyph.Kind[] symbols = {Glyph.Kind.SPORTS, Glyph.Kind.CINEMA, Glyph.Kind.TORII};
-        for (SourceEntry.Category category : SourceEntry.Category.values()) {
-            FrameLayout card = new FrameLayout(c);
-            card.setBackground(t.glass(Theme.R_PANEL, .94f));
-            ImageView art = new ImageView(c);
-            art.setImageResource(pictures[category.ordinal()]);
-            art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            card.addView(art, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
-            View shade = new View(c);
-            shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{0x00000000, 0x13090F17, 0xF214202E}));
-            card.addView(shade, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
-            LinearLayout labels = new LinearLayout(c);
-            labels.setOrientation(LinearLayout.VERTICAL);
-            labels.setPadding(t.dp(14), 0, t.dp(12), t.dp(10));
-            ImageView badge = new ImageView(c);
-            badge.setImageDrawable(new Glyph(symbols[category.ordinal()], Theme.SOFT_WHITE));
-            badge.setBackground(t.outlined(ink[category.ordinal()], 0xAADDEBF4, 1, 9));
-            badge.setPadding(t.dp(6), t.dp(6), t.dp(6), t.dp(6));
-            LinearLayout.LayoutParams badgeSize = new LinearLayout.LayoutParams(t.dp(34), t.dp(34));
-            badgeSize.bottomMargin = t.dp(3);
-            labels.addView(badge, badgeSize);
-            labels.addView(text(category.title, 23, true));
-            labels.addView(text(category.subtitle, Theme.T_LABEL, false));
-            card.addView(labels, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP, Gravity.BOTTOM));
-            TextView chevron = text("›", 23, true);
-            chevron.setGravity(Gravity.CENTER);
-            chevron.setBackground(t.glass(18, .88f));
-            FrameLayout.LayoutParams arrow = new FrameLayout.LayoutParams(t.dp(27), t.dp(27), Gravity.BOTTOM | Gravity.END);
-            arrow.rightMargin = t.dp(12);
-            arrow.bottomMargin = t.dp(10);
-            card.addView(chevron, arrow);
-            card.setContentDescription(category.title + ", browse sources");
-            w.focusable(card, Theme.R_PANEL, null, true);
-            card.setFocusableInTouchMode(true);
-            card.setOnClickListener(v -> host.open(new SourceCategoryPanel(host, category)));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Math.round(t.screenH() * .29f), 1);
-            if (category.ordinal() > 0) lp.leftMargin = t.dp(9);
-            cards.addView(card, lp);
-            if (first == null) first = card;
+        LinearLayout intro = new LinearLayout(c);
+        intro.setGravity(Gravity.CENTER_VERTICAL);
+        intro.addView(text("Get apps, games, and streaming apps on your TV.", Theme.T_BODY, false),
+                new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
+        if (host.prefs().assistantEnabled()) {
+            TextView shortcut = compactButton("Assistant", Glyph.Kind.ASSISTANT, host::openAssistant);
+            shortcut.setContentDescription("Open Assistant");
+            intro.addView(shortcut);
         }
-        LinearLayout bar = new LinearLayout(c);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackground(t.glass(Theme.R_PANEL, .88f));
-        bar.setPadding(t.dp(14), t.dp(10), t.dp(14), t.dp(10));
-        input = field("Enter a code or HTTPS link", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI, 8192);
-        input.setImeOptions(EditorInfo.IME_ACTION_GO);
-        input.setOnEditorActionListener((v, id, event) -> { if (id == EditorInfo.IME_ACTION_GO) { go(); return true; } return false; });
-        bar.addView(input, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
-        TextView go = action("Go   ›", this::go);
-        LinearLayout.LayoutParams gl = w.wrap();
-        gl.leftMargin = t.dp(9);
-        bar.addView(go, gl);
-        body.addView(bar, spaced(12));
-        message = text("", Theme.T_LABEL, false);
-        message.setVisibility(View.GONE);
-        body.addView(message);
-        LinearLayout steps = new LinearLayout(c);
-        steps.setGravity(Gravity.CENTER_VERTICAL);
-        steps.setPadding(t.dp(14), t.dp(6), t.dp(8), t.dp(6));
-        steps.setBackground(t.glass(Theme.R_PANEL, .79f));
-        step(steps, "1", "Choose source", "Select an app or code");
-        step(steps, "2", "Check APK", "Review file and app details");
-        step(steps, "3", "Approve install", "Confirm with Android");
-        steps.addView(action("Manage Downloads", () -> host.open(new DownloadLibraryPanel(host))));
-        body.addView(steps, spaced(10));
+        body.addView(intro);
+        makeInput();
+        makeCategories();
+        queue = new ActiveDownloads(this);
+        body.addView(queue.view, spaced(8));
+        makeShelf();
+        makeDock();
         return screen("Download Center");
     }
 
-    private void step(LinearLayout steps, String number, String heading, String summary) {
-        LinearLayout group = new LinearLayout(c);
-        group.setGravity(Gravity.CENTER_VERTICAL);
-        TextView n = text(number, Theme.T_BODY, true);
-        n.setGravity(Gravity.CENTER);
-        n.setBackground(t.glass(18, .8f));
-        group.addView(n, new LinearLayout.LayoutParams(t.dp(25), t.dp(25)));
-        LinearLayout lines = new LinearLayout(c);
-        lines.setOrientation(LinearLayout.VERTICAL);
-        lines.setPadding(t.dp(6), 0, t.dp(4), 0);
-        lines.addView(text(heading, Theme.T_NAV, true));
-        lines.addView(text(summary, Theme.T_CAPTION, false));
-        group.addView(lines);
-        steps.addView(group, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
+    private void makeInput() {
+        LinearLayout bar = new LinearLayout(c);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(t.dp(14), t.dp(3), t.dp(4), t.dp(3));
+        bar.setBackground(t.glass(Theme.R_PILL, .84f));
+        bar.addView(icon(Glyph.Kind.LINK), new LinearLayout.LayoutParams(t.dp(18), t.dp(18)));
+        input = field("Enter a code or HTTPS link...", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI, 8192);
+        input.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        input.setImeOptions(EditorInfo.IME_ACTION_GO);
+        input.setOnEditorActionListener((v, id, e) -> {
+            if (id == EditorInfo.IME_ACTION_GO) { go(); return true; }
+            return false;
+        });
+        bar.addView(input, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1));
+        ImageView go = icon(Glyph.Kind.ARROW, Theme.DEEP_BLACK);
+        go.setPadding(t.dp(6), t.dp(6), t.dp(6), t.dp(6));
+        go.setBackground(t.rounded(Theme.SOFT_WHITE, Theme.R_PILL));
+        go.setContentDescription("Go");
+        w.focusable(go, Theme.R_PILL, null, true);
+        go.setOnClickListener(v -> go());
+        bar.addView(go, new LinearLayout.LayoutParams(t.dp(30), t.dp(30)));
+        body.addView(bar, spaced(5));
+        message = text("", Theme.T_LABEL, false);
+        message.setVisibility(View.GONE);
+        body.addView(message);
     }
+
+    private void makeCategories() {
+        LinearLayout cards = strip();
+        for (Category category : Category.values()) {
+            if (category == Category.ANIME) continue; // retained in All Categories for existing catalogs
+            categoryCard(cards, category.title, categoryIcon(category), () -> host.open(new SourceCategoryPanel(host, category)));
+        }
+        categoryCard(cards, "All Categories", Glyph.Kind.GRID, () -> host.open(new SourcesPanel(host, "All Categories")));
+        body.addView(cards, spaced(8));
+    }
+
+    private void categoryCard(LinearLayout row, String name, Glyph.Kind symbol, Runnable open) {
+        LinearLayout card = new LinearLayout(c);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER);
+        card.setBackground(t.glass(Theme.R_PANEL, .82f));
+        card.addView(icon(symbol), new LinearLayout.LayoutParams(t.dp(25), t.dp(25)));
+        TextView label = text(name, Theme.T_NAV, true);
+        label.setSingleLine();
+        card.addView(label);
+        card.setContentDescription(name + ", browse sources");
+        w.focusable(card, Theme.R_PANEL, null, true);
+        card.setFocusableInTouchMode(true);
+        card.setOnClickListener(v -> open.run());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, t.dp(62), 1);
+        if (row.getChildCount() > 0) lp.leftMargin = t.dp(7);
+        row.addView(card, lp);
+        if (first == null) first = card;
+    }
+
+    private Glyph.Kind categoryIcon(Category category) {
+        switch (category) {
+            case APPS: return Glyph.Kind.APPS;
+            case MOVIES: return Glyph.Kind.PLAY;
+            case SPORTS: return Glyph.Kind.TV;
+            case GAMES: return Glyph.Kind.GAMES;
+            case TOOLS: return Glyph.Kind.LAYERS;
+            default: return Glyph.Kind.GRID;
+        }
+    }
+
+    private void makeShelf() {
+        LinearLayout header = new LinearLayout(c);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(text("Trending Apps", Theme.T_NAV, true));
+        TextView installed = text("   ·   Installed on this TV", Theme.T_CAPTION, false);
+        header.addView(installed);
+        body.addView(header, spaced(6));
+        HorizontalScrollView scroll = new HorizontalScrollView(c);
+        scroll.setHorizontalScrollBarEnabled(false);
+        scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
+        scroll.setSmoothScrollingEnabled(!t.reducedMotion);
+        scroll.setBackground(t.glass(Theme.R_PANEL, .78f));
+        scroll.setPadding(t.dp(9), t.dp(4), t.dp(9), t.dp(4));
+        shelf = strip();
+        shelf.setGravity(Gravity.CENTER_VERTICAL);
+        scroll.addView(shelf);
+        body.addView(scroll, spaced(3));
+        refreshShelf();
+        scroll.getViewTreeObserver().addOnWindowFocusChangeListener(has -> {
+            if (has && shelf.isShown()) {
+                refreshShelf();
+                if (queue != null) queue.refresh();
+            }
+        });
+    }
+
+    private void refreshShelf() {
+        List<String> packages = new ArrayList<>();
+        for (String pkg : FEATURED_PACKAGES) if (host.apps().usable(pkg)) packages.add(pkg);
+        if (packages.equals(shownPackages)) return;
+        Object restore = shelf.findFocus() == null ? null : shelf.findFocus().getTag();
+        shownPackages = packages;
+        shelf.removeAllViews();
+        if (packages.isEmpty()) shelf.addView(text("No featured apps installed on this TV.", Theme.T_LABEL, false));
+        int usableWidth = t.screenW() - 2 * t.safeX() - t.dp(33) - t.dp(43);
+        int tileWidth = Math.max(t.dp(52), Math.min(t.dp(88), usableWidth / Math.max(1, packages.size()) - t.dp(7)));
+        for (String pkg : packages) {
+            ImageView tile = new ImageView(c);
+            tile.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            tile.setImageDrawable(host.apps().icon(pkg));
+            tile.setTag(pkg);
+            tile.setContentDescription("Open " + host.apps().label(pkg));
+            tile.setPadding(t.dp(3), t.dp(3), t.dp(3), t.dp(3));
+            tile.setBackground(t.glass(10, .65f));
+            w.focusable(tile, 10, null, true);
+            tile.setOnClickListener(v -> {
+                if (!host.apps().launch(pkg)) { host.toast("This app is no longer available."); refreshShelf(); }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileWidth, t.dp(40));
+            lp.rightMargin = t.dp(7);
+            shelf.addView(tile, lp);
+        }
+        ImageView plus = icon(Glyph.Kind.PLUS);
+        plus.setBackground(t.glass(10, .72f));
+        plus.setPadding(t.dp(9), t.dp(9), t.dp(9), t.dp(9));
+        plus.setTag("all-apps");
+        plus.setContentDescription("All installed apps");
+        w.focusable(plus, 10, null, true);
+        plus.setOnClickListener(v -> host.navigate("Apps"));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(t.dp(43), t.dp(40));
+        if (packages.isEmpty()) lp.leftMargin = t.dp(12);
+        shelf.addView(plus, lp);
+        if (restore != null) {
+            View previous = shelf.findViewWithTag(restore);
+            (previous == null ? plus : previous).requestFocus();
+        }
+    }
+
+    private void makeDock() {
+        LinearLayout dock = strip();
+        dock.setGravity(Gravity.CENTER_VERTICAL);
+        dock.setBackground(t.glass(Theme.R_PILL, .88f));
+        dock.setPadding(t.dp(4), t.dp(3), t.dp(4), t.dp(3));
+        dockItem(dock, "Install APK", Glyph.Kind.APK, () -> host.open(new ApkFilesPanel(host, true)));
+        dockItem(dock, "File Manager", Glyph.Kind.FOLDER, () -> host.open(new ApkFilesPanel(host, false)));
+        dockItem(dock, "App Sources", Glyph.Kind.LAYERS, () -> host.open(new SourcesPanel(host, "App Sources")));
+        dockItem(dock, "Manage Downloads", Glyph.Kind.DOWNLOAD, () -> host.open(library(host)));
+        body.addView(dock, spaced(7));
+    }
+
+    private void dockItem(LinearLayout dock, String name, Glyph.Kind symbol, Runnable open) {
+        if (dock.getChildCount() > 0) {
+            View line = new View(c);
+            line.setBackgroundColor(Theme.withAlpha(Theme.SOFT_WHITE, .30f));
+            dock.addView(line, new LinearLayout.LayoutParams(t.dp(1), t.dp(15)));
+        }
+        LinearLayout item = new LinearLayout(c);
+        item.setGravity(Gravity.CENTER);
+        item.setBackground(t.rounded(android.graphics.Color.TRANSPARENT, Theme.R_PILL));
+        item.addView(icon(symbol), new LinearLayout.LayoutParams(t.dp(16), t.dp(16)));
+        TextView label = text(name, Theme.T_LABEL, true);
+        label.setSingleLine(); label.setPadding(t.dp(5), 0, 0, 0);
+        item.addView(label);
+        item.setContentDescription(name);
+        w.focusable(item, Theme.R_PILL, null, true);
+        item.setOnClickListener(v -> open.run());
+        dock.addView(item, new LinearLayout.LayoutParams(0, t.dp(31), 1));
+    }
+
+    private TextView compactButton(String label, Glyph.Kind symbol, Runnable open) {
+        TextView v = action(label, open);
+        v.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, Theme.T_LABEL * t.scale);
+        v.setPadding(t.dp(7), t.dp(3), t.dp(7), t.dp(3));
+        Glyph icon = new Glyph(symbol, Theme.SOFT_WHITE);
+        icon.setBounds(0, 0, t.dp(15), t.dp(15));
+        v.setCompoundDrawablesRelative(icon, null, null, null);
+        v.setCompoundDrawablePadding(t.dp(4));
+        return v;
+    }
+
+    private LinearLayout strip() {
+        LinearLayout row = new LinearLayout(c);
+        row.setClipChildren(false);
+        row.setClipToPadding(false);
+        return row;
+    }
+    private ImageView icon(Glyph.Kind symbol) { return icon(symbol, Theme.SOFT_WHITE); }
+    private ImageView icon(Glyph.Kind symbol, int color) {
+        ImageView v = new ImageView(c);
+        v.setImageDrawable(new Glyph(symbol, color));
+        return v;
+    }
+
+    @Override public void onUncovered() {
+        refreshShelf();
+        queue.refresh();
+    }
+    @Override public void onClosed() { queue.close(); }
+    @Override public void onPackagesChanged() { if (shelf != null) refreshShelf(); }
 
     private void go() {
         String value = input.getText().toString().trim();

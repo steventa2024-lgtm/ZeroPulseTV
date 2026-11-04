@@ -2,8 +2,8 @@
 <!-- Existing HOME activity and package ID retain the owner's default launcher and settings. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="tv.calmhome.launcher"
-    android:versionCode="3001"
-    android:versionName="3.0.0-beta.1">
+    android:versionCode="3002"
+    android:versionName="3.0.0-beta.2">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Target 34 requires this normal permission for JobScheduler network constraints. -->
@@ -27,6 +27,12 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
         <package android:name="com.tcl.tv" />
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application

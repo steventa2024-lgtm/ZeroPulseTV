@@ -90,7 +90,7 @@ class Emulator:
         self.shell("am", "start", "-W", "-n", component, "--es", "zp_open", "downloads")
         time.sleep(1)
         center = self.capture("02-download-center")
-        if not self.contains(center, "Download Center") or not self.contains(center, "Live Sports"):
+        if not all(self.contains(center, label) for label in ("Download Center", "Apps", "Movies & TV", "Live TV", "Games", "Tools", "All Categories", "Active Downloads", "Trending Apps")):
             raise RuntimeError("Download Center missing")
         before = self.focus(center)
         self.key("KEYCODE_DPAD_RIGHT")

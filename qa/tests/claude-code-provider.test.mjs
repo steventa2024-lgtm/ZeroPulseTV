@@ -41,6 +41,24 @@ test("CLI config is local and chat is tool-free, without shell expansion, token 
   await assert.rejects(stat(request.cwd), { code: "ENOENT" });
 });
 
+test("viewer Stop cancels the CLI request without declaring the provider unavailable", async () => {
+  const controller = new AbortController();
+  let started, cwd;
+  const waiting = new Promise(resolve => { started = resolve; });
+  const provider = stub(async (_bin, _args, options) => {
+    cwd = options.cwd;
+    started();
+    return new Promise(resolve => options.signal.addEventListener("abort",
+      () => resolve({ failed: true, stdout: "" }), { once: true }));
+  });
+  const pending = provider.answer(ask, controller.signal);
+  await waiting;
+  controller.abort();
+  await assert.rejects(pending, { name: "AbortError" });
+  assert.equal((await provider.status()).provider.state, "configured");
+  await assert.rejects(stat(cwd), { code: "ENOENT" });
+});
+
 test("structured HTTP 429 is distinct from gateway offline or an invalid provider key", async () => {
   const provider = stub(async () => result({ type: "result", is_error: true, api_error_status: 429 }, true));
   await assert.rejects(provider.answer(ask), /rate limit/);
@@ -75,6 +93,48 @@ test("OpenPulse model refuses tools and attachments; only TV text reaches the CL
   assert.equal(parts.find(p => p.type === "text-delta").delta, "Hello TV.");
   assert.equal(parts.at(-1).usage.outputTokens.total, 3);
   assert.equal(calls, 1);
+});
+
+test("provider streams only text before completion, reconciles final text and preserves usage", async () => {
+  let finish;
+  const release = new Promise(resolve => { finish = resolve; });
+  const model = stub(async (_bin, args, _opts, _input, emit) => {
+    assert.ok(args.includes("--include-partial-messages") && args.includes("stream-json"));
+    const line = (type, text, parent_tool_use_id = null) => JSON.stringify({ type: "stream_event", parent_tool_use_id,
+      event: { type: "content_block_delta", delta: { type, text } } }) + "\n";
+    const first = line("text_delta", "Hello ");
+    emit(first.slice(0, 12));
+    emit(first.slice(12) + line("thinking_delta", "hidden") + line("text_delta", "tool", "private"));
+    await release;
+    return success();
+  }).asTvModel();
+  const { stream } = await model.doStream({ prompt: [{ role: "user", content: [{ type: "text", text: "hi" }] }] });
+  const reader = stream.getReader();
+  assert.equal((await reader.read()).value.type, "stream-start");
+  assert.equal((await reader.read()).value.type, "text-start");
+  assert.deepEqual((await reader.read()).value, { type: "text-delta", id: "tv", delta: "Hello " });
+  finish();
+  assert.equal((await reader.read()).value.delta, "TV.");
+  assert.equal((await reader.read()).value.type, "text-end");
+  assert.equal((await reader.read()).value.usage.outputTokens.total, 3);
+  assert.equal((await reader.read()).done, true);
+});
+
+test("canceling a stream stops its native request and never reports success", async () => {
+  let ready, stopped;
+  const launched = new Promise(resolve => { ready = resolve; });
+  const gone = new Promise(resolve => { stopped = resolve; });
+  const provider = stub(async (_bin, _args, opts) => {
+    ready();
+    await new Promise(resolve => opts.signal.addEventListener("abort", resolve, {once:true}));
+    stopped();
+    return {failed:true, stdout:""};
+  });
+  const { stream } = await provider.asTvModel().doStream({ prompt: [{ role:"user", content:[{type:"text",text:"hi"}] }] });
+  await launched;
+  await stream.cancel();
+  await gone;
+  assert.equal((await provider.status()).provider.state, "configured");
 });
 
 test("installed Claude Code talks to a loopback Messages fixture with no tools or subscription", {
@@ -115,17 +175,20 @@ test("installed Claude Code talks to a loopback Messages fixture with no tools o
   try {
     const local = "http://127.0.0.1:" + server.address().port;
     // Only this opt-in fixture overrides the backend. The production adapter always uses the CLI default.
-    const runner = (exe, args, opts, stdin) => new Promise(resolve => {
+    const runner = (exe, args, opts, stdin, onOutput) => new Promise(resolve => {
       const child = execFile(exe, args, { ...opts, env: { ...opts.env, ANTHROPIC_BASE_URL: local,
         DISABLE_AUTOUPDATER: "1" } }, (e, stdout, stderr) => {
           if (e) process.stderr.write("Loopback CLI exit " + e.code + ": " + stderr.slice(0, 500) + "\n");
           resolve({ failed: !!e, stdout });
         });
       child.stdin.on("error", () => {});
+      if (onOutput) child.stdout.setEncoding("utf8").on("data", onOutput);
       child.stdin.end(stdin);
     });
     const provider = new ClaudeCodeProvider({ executable: process.env.ZEROPULSE_TEST_CLAUDE_EXE, apiKey: fixtureKey }, runner);
-    assert.equal((await provider.answer(ask)).text, "Fixture reply");
+    const received = [];
+    assert.equal((await provider.answer(ask, undefined, text => received.push(text))).text, "Fixture reply");
+    assert.equal(received.join(""), "Fixture reply");
     assert.equal(messagesRequest.usedFixtureKey, true);
     assert.equal(messagesRequest.tools?.length ?? 0, 0);
   } finally {

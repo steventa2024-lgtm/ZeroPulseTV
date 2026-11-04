@@ -12,6 +12,8 @@ The unmodified CLI supports noninteractive operation and a restricted, API-key-a
 
 The authenticated gateway can supply remote history, running status, streaming text snapshots and completed replies. Stop response invokes its scoped cancellation method. The TV distinguishes a confirmed abort from a request that reached the PC after generation ended. A safe app or input suggestion becomes a button and requires selection. Chat cannot approve installations or access PC files or a shell.
 
+The optional PC adapter reads the native CLI’s partial text events as they arrive. It forwards top-level text only and checks the final CLI result before reporting completion. Canceling the stream signals the CLI process.
+
 The TV retains at most 30 text turns in app-private, backup-excluded storage. Focus the transcript to scroll. Clear TV history deletes the local text and suppresses re-import of older remote turns. The PC keeps its copy until the viewer confirms New PC conversation. A confirmed empty PC history begins a fresh thread.
 
 ## Voice
@@ -19,5 +21,9 @@ The TV retains at most 30 text turns in app-private, backup-excluded storage. Fo
 Select Talk to launch Android’s recognition activity. The launcher checks for a compatible handler and offers text input if none exists. Android’s recognizer may process speech online. Review or edit the transcription before selecting Send. The OS owns capture and its microphone controls. The launcher does not request RECORD_AUDIO or listen in the background. Speak replies is off by default. When enabled, it uses Android TTS and audio focus. Stop speaking ends playback. Only newly completed replies are spoken. History, partial output and connection status are never read aloud. [RecognizerIntent](https://developer.android.com/reference/android/speech/RecognizerIntent) · [TextToSpeech](https://developer.android.com/reference/android/speech/tts/TextToSpeech)
 
 ## Acceptance boundaries
+
+With Speak replies enabled, select Preview voice to hear a local sample. It does not contact the PC, add a transcript turn or represent a model reply.
+
+After installing the approved build, run `node qa/assistant-device-smoke.mjs SERIAL` to check editable typing, both local commands, navigation and the saved pairing indicator. Select a specific device. The optional `--tts-preview` check restores the original preference after checking engine completion and Stop. `--recognizer-cancel` and `--recognizer-dictate` explicitly launch the Android recognizer. Run the latter only with the viewer ready to speak. The script never sends the recognized draft. Screenshots and results stay under the ignored private evidence folder.
 
 The host tests cover bounded local history, offline clear, provider states and safe commands. Real loopback integration uses a pinned gateway, ephemeral pairing and a scripted model to test the two-way protocol, stop acknowledgements and reset. The native CLI fixture uses a synthetic local Messages API without live billing. A live authenticated Claude response requires authorized PC configuration. No real Claude subscription or paid API call was used for this build. A recognizer or TTS package being installed does not verify microphone audio or audible output at the viewer’s seat. [Physical acceptance](../qa/GRAPHITE_V3_TV_ACCEPTANCE.md)

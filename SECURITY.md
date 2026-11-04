@@ -28,6 +28,8 @@ changing it would turn every update into a separate app and lose users' settings
 
 ## What the app can and cannot do
 
+Graphite delegates explicit push-to-talk to Android’s recognition activity and never requests `RECORD_AUDIO`. The viewer edits the returned draft before sending. Spoken replies use the selected TTS engine. Only bounded message text is stored in the local transcript. Pairing and provider credentials live separately. The authenticated PC chat may suggest opening a local screen but cannot approve packages, read PC files or run commands. [Assistant and PC provider boundaries](docs/GRAPHITE_V3_ASSISTANT_AND_CLAUDE.md)
+
 - The private v3 beta requests `INTERNET`, `ACCESS_NETWORK_STATE` for Android 14 download job network constraints, `RECEIVE_BOOT_COMPLETED` for persisted jobs, and `REQUEST_INSTALL_PACKAGES` for the system installer. Public v2.1 requests only `INTERNET`.
 - The TV can launch apps, switch inputs, and stage an inspected APK when the owner selects Install. Android controls permission to install from this source and prompts for installation. JARVIS has no method for downloading or installing APKs.
 - Network traffic originates from an explicit APK download or the optional JARVIS connection. Home and its wallpaper rotation work offline.

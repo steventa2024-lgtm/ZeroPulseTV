@@ -240,7 +240,9 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         dashboard.addView(heading, spaced(7));
 
         LinearLayout mid = new LinearLayout(this);
-        mid.setClipChildren(false);
+        // The sidebar scrolls beside the thread. Its offscreen rows must stay inside this viewport.
+        mid.setClipChildren(true);
+        mid.setClipToPadding(true);
         LinearLayout thread = vertical();
         thread.setPadding(t.dp(13), t.dp(9), t.dp(13), t.dp(8));
         thread.setBackground(t.glass(Theme.R_PANEL, .78f));
@@ -281,6 +283,8 @@ public class AssistantActivity extends Activity implements JarvisSession.Listene
         buildCommands();
         conn.addView(commandList, spaced(7));
         ScrollView side = new ScrollView(this);
+        side.setClipChildren(true);
+        side.setClipToPadding(true);
         side.setSmoothScrollingEnabled(!t.reducedMotion);
         side.setFocusable(false);
         side.addView(panel("Connection & commands", conn));

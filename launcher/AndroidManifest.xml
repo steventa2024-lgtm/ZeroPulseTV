@@ -68,7 +68,7 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape"
-            android:windowSoftInputMode="adjustPan"
+            android:windowSoftInputMode="stateAlwaysHidden|adjustPan"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|density|fontScale|locale|layoutDirection" />
         <service android:name=".downloads.DownloadJob" android:exported="true"
             android:permission="android.permission.BIND_JOB_SERVICE" />

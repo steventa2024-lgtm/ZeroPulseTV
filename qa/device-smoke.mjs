@@ -7,8 +7,8 @@ import path from 'node:path';
 
 const serial = process.argv[2];
 const mode = process.argv[4];
-if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k'].includes(mode))) {
-  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k]');
+if (!serial || process.argv.length > 5 || (mode && !['--emulator-motion','--emulator-4k','--published-release'].includes(mode))) {
+  console.error('Usage: node qa/device-smoke.mjs ADB_SERIAL [private-output-directory] [--emulator-motion|--emulator-4k|--published-release]');
   process.exit(2);
 }
 const pkg = 'tv.calmhome.launcher';
@@ -193,6 +193,43 @@ async function fullNavigation() {
   capture('12-home-return', 'Downloads');
 }
 
+// Download the owner's immutable published APK via the ordinary remote UI. It must never replace HOME.
+async function publishedRelease() {
+  const url = 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk';
+  const digest = 'ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401';
+  await open('Downloads');
+  await focus('Enter a code or HTTPS link');
+  assert.equal(tree().focused.class, 'android.widget.EditText');
+  shell('input', 'text', url);
+  assert.ok(tree().nodes.some(n => n.text === url), 'Entered URL did not match the published release');
+  // Leaving a populated EditText with an arrow can move its caret instead of changing focus.
+  await key('TAB');
+  await open(/^Go\b/);
+  capture('01-published-source', 'Review source');
+  await open('Start download');
+  const deadline = Date.now() + 120000;
+  let observed;
+  while (Date.now() < deadline) {
+    const { nodes } = tree();
+    if (nodes.some(n => n.text.startsWith('Failed'))) {
+      observed = nodes;
+      break;
+    }
+    await pause(550);
+  }
+  assert.ok(observed, 'The download did not reach its expected self-update refusal');
+  assert.ok(observed.some(n => n.text.includes('cannot replace this HOME launcher')), 'Unexpected download error');
+  assert.ok(observed.some(n => n.text.includes(digest) && n.text.includes(url)), 'Source or published SHA-256 differs');
+  capture('02-published-result', /cannot replace this HOME launcher/);
+  // Remove only the record created by this invocation, after checking both its source and digest.
+  await open('Remove file and history');
+  await open('Remove download');
+  await open('Home');
+  assert.match(shell('dumpsys', 'package', pkg), /versionCode=3001\b/);
+  save('published-release.txt', ['PASS published HTTPS download through the launcher UI', 'Source ' + url,
+    'SHA-256 ' + digest, 'Self-update refused; new test history entry removed; v3 retained.'].join('\n') + '\n');
+}
+
 const home = () => shell('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME').trim();
 const beforeHome = home();
 try {
@@ -203,7 +240,8 @@ try {
   await pause(650);
   // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
   if (!tree().focused) await key('DPAD_DOWN');
-  if (mode) await emulatorDisplayTest();
+  if (mode === '--published-release') await publishedRelease();
+  else if (mode) await emulatorDisplayTest();
   else await fullNavigation();
   console.log('PASS default HOME membership', home() === beforeHome);
   assert.equal(home(), beforeHome, 'Default HOME changed during test');

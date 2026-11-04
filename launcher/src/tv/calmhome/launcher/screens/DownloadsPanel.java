@@ -126,11 +126,13 @@ public final class DownloadsPanel extends DownloadPage {
         message.setVisibility(View.GONE);
         try {
             if (SourceEntry.isCode(value)) {
+                dismissKeyboard();
                 SourceEntry entry = SourceEntry.byCode(new SourceCatalog(c).all(), value);
                 if (entry != null) host.open(new SourceReviewPanel(host, entry.url, entry.sha256, entry.label));
                 else external(value);
             } else {
                 String url = DownloadPolicy.validateUrl(value).toASCIIString();
+                dismissKeyboard();
                 host.open(new SourceReviewPanel(host, url, "", "Direct HTTPS link"));
             }
         } catch (IllegalArgumentException e) {

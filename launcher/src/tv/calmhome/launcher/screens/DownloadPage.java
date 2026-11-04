@@ -83,5 +83,10 @@ abstract class DownloadPage extends Panel {
         v.setText(e.getMessage() == null ? "Unable to complete this action." : e.getMessage());
         v.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
     }
+    void dismissKeyboard() {
+        android.view.inputmethod.InputMethodManager ime =
+                c.getSystemService(android.view.inputmethod.InputMethodManager.class);
+        if (ime != null) ime.hideSoftInputFromWindow(body.getWindowToken(), 0);
+    }
     @Override public void focusFirst() { if (first != null) first.requestFocus(); }
 }

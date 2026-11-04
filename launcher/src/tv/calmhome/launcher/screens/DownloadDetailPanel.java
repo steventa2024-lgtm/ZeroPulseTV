@@ -78,7 +78,8 @@ final class DownloadDetailPanel extends DownloadPage {
         boolean local = r.url.startsWith("content://");
         line(facts, "Source", local ? "File chosen in Android’s document picker" : android.net.Uri.parse(r.url).getHost());
         line(facts, local ? "Document URI" : "Requested URL", r.url);
-        if (!local && !r.url.equals(r.finalUrl)) line(facts, "Final HTTPS destination", r.finalUrl);
+        if (!local && !r.url.equals(r.finalUrl) && r.finalUrl != null && !r.finalUrl.isEmpty())
+            line(facts, "Final HTTPS host", android.net.Uri.parse(r.finalUrl).getAuthority());
         line(facts, "File", r.fileName);
         line(facts, "Package", r.packageName);
         line(facts, "Version", r.versionName);

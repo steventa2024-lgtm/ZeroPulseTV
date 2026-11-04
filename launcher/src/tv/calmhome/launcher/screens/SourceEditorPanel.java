@@ -30,6 +30,7 @@ final class SourceEditorPanel extends DownloadPage {
                 SourceEntry s = new SourceEntry(category, name.getText().toString(), link.getText().toString(),
                         code.getText().toString(), checksum.getText().toString());
                 new SourceCatalog(c).add(s);
+                dismissKeyboard();
                 host.close(this);
                 host.toast("Source saved");
             } catch (IllegalArgumentException e) { showError(error, e); }

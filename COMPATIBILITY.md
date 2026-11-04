@@ -1,4 +1,12 @@
-# Compatibility — v2.1.0-beta.1
+# Compatibility
+
+## Graphite development build
+
+ZeroPulse TV 3.0.0-beta.2 (3002) targets API 34 and requires API 26 or later. It retains the package and HOME activity used by the earlier beta. The Download Center uses normal network-state and Internet access, plus Android’s special permission for installing APKs. Push-to-talk delegates recording to the system speech activity. It does not request microphone permission.
+
+The Google TV emulator has exercised the new launcher, background transfers, interruption recovery and Android installation approval. A device’s standard file picker, speech recognizer, audio output and default HOME selection depend on its system software. The TCL requires the owner-signed build containing its private streaming features. See the [Graphite acceptance report](qa/GRAPHITE_V3_TV_ACCEPTANCE.md) for the tested configurations, current results and physical-device limits.
+
+## Historical public release — v2.1.0-beta.1
 
 Only what is listed as **Tested** has actually been run. Everything else is expected from the code and
 Android's documented APIs, but has **not been verified**.

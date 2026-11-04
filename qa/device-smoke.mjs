@@ -16,6 +16,10 @@ const adb = (...args) => execFileSync(process.env.ADB || 'adb', ['-s', serial, .
   { timeout: 60000, maxBuffer: 32 * 1024 * 1024 });
 const shell = (...args) => adb('shell', ...args).toString();
 assert.equal(adb('get-state').toString().trim(), 'device', 'Device must already be authorized');
+if (mode === '--emulator-assistant-entry') {
+  assert.match(serial, /^emulator-\d+$/, 'Assistant keyboard comparison requires a disposable emulator');
+  assert.equal(shell('getprop','ro.kernel.qemu').trim(),'1');
+}
 const version = shell('dumpsys', 'package', pkg);
 assert.match(version, /versionName=3\.0\.0-beta\.2\b/, 'Install the approved v3 candidate before running this test');
 assert.ok(Number(version.match(/versionCode=(\d+)/)?.[1]) === 3002, 'Expected the graphite candidate');
@@ -290,8 +294,6 @@ try {
   // A previous package confirmation can leave Android in touch mode. The first D-pad key exits it.
   if (!tree().focused) await key('DPAD_DOWN');
   if (mode === '--emulator-assistant-entry') {
-    assert.match(serial, /^emulator-\d+$/);
-    assert.equal(shell('getprop','ro.kernel.qemu').trim(),'1');
     await open('Assistant');
     await pause(650);
     const shown = /mInputShown=true/.test(shell('dumpsys','input_method'));
@@ -300,6 +302,12 @@ try {
     assert.ok(!/mInputShown=true/.test(shell('dumpsys','input_method')), 'Keyboard still showing');
     capture('remote-assistant-dashboard', 'Conversation');
     save('entry-keyboard.txt', 'Keyboard on normal D-pad entry: ' + (shown ? 'shown' : 'hidden') + '\n');
+    await focus('Ask a question or type a TV command');
+    await key('DPAD_CENTER');
+    await pause(600);
+    assert.ok(/mInputShown=true/.test(shell('dumpsys','input_method')), 'OK must still open the keyboard');
+    await key('BACK');
+    console.log('PASS remote OK still opens the editable keyboard on demand');
   } else if (mode === '--installed-library') await installedLibrary();
   else if (mode === '--published-release') await publishedRelease();
   else if (mode) await emulatorDisplayTest();

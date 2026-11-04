@@ -31,7 +31,10 @@ function current() {
 function localWindow() { assert.ok(current().startsWith(pkg + '/'), 'Foreground has changed; no input sent'); }
 function decode(s) { return s.replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&'); }
 function ui() {
-  const xml = adb('exec-out','uiautomator','dump','/dev/tty').toString();
+  let xml = '';
+  for (let attempt = 0; attempt < 3 && !xml.includes('</hierarchy>'); attempt++) {
+    xml = adb('exec-out','uiautomator','dump','/dev/tty').toString();
+  }
   assert.ok(xml.includes('</hierarchy>'), 'No complete accessibility tree');
   return [...xml.matchAll(/<node\s+[^>]*>/g)].map(([tag]) => {
     const n = Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(([,k,v]) => [k,decode(v)]));
@@ -234,11 +237,27 @@ function requireEmulator() {
 }
 async function offlineHome() {
   requireEmulator();
+  assert.match(shell('pm','path','com.android.vending'), /^package:/, 'The disposable Google TV needs its real Play Store app');
+  async function storeMenu() {
+    shell('am','start','-W','-n',pkg + '/.MainActivity','--es','zp_open','apps');
+    const apps = await waitText(t => t.includes('Hold OK to manage your dock'));
+    const tile = apps.find(n => ['Google Play Store','Google Play Store, in dock'].includes(n.label)
+      && n['long-clickable'] === 'true');
+    assert.ok(tile, 'Installed Play Store tile unavailable');
+    localWindow();
+    shell('input','swipe',String(tile.x),String(tile.y),String(tile.x),String(tile.y),'800');
+    return waitText(t => t === 'Add to dock' || t === 'Remove from dock');
+  }
   const connection = (...args) => shell('cmd','connectivity',...args);
   const chain = connection('get-chain3-enabled'), rule = connection('get-package-networking-enabled',pkg);
   assert.match(chain, /^chain:(enabled|disabled)$/);
   assert.match(rule, /^tv\.calmhome\.launcher:(allow|deny)$/);
+  let added = false;
   try {
+    if (find(await storeMenu(),'Add to dock')) {
+      await click('Add to dock');
+      added = true;
+    }
     connection('set-package-networking-enabled','false',pkg);
     connection('set-chain3-enabled','true');
     assert.equal(connection('get-package-networking-enabled',pkg), pkg + ':deny');
@@ -247,17 +266,26 @@ async function offlineHome() {
     const launch = shell('am','start','-W','-n',pkg + '/.MainActivity','--es','zp_open','home');
     assert.match(launch,/Status: ok/);
     const nodes = await waitText(t => t === 'All Apps');
-    const tiles = nodes.filter(n => n['long-clickable'] === 'true' && n['content-desc'] && n.clickable === 'true');
-    assert.ok(tiles.length > 0, 'No installed app tile visible in Home dock');
+    assert.ok(nodes.some(n => n.label === 'Google Play Store' && n['long-clickable'] === 'true'),
+      'Installed Play Store missing from Home dock');
     evidence('home-package-network-denied');
     const ms = (launch.match(/TotalTime: (\d+)/) || [])[1];
-    record('PASS cold Home with launcher network access denied, ' + tiles.length + ' dock tiles visible' +
+    record('PASS cold Home with launcher network access denied and verified Google Play Store in dock' +
       (ms ? ', Android display time ' + ms + ' ms' : '') + '. Emulator Ethernet remained connected.');
   } finally {
     connection('set-package-networking-enabled',rule.endsWith(':allow') ? 'true' : 'false',pkg);
     connection('set-chain3-enabled',chain.endsWith(':enabled') ? 'true' : 'false');
     assert.equal(connection('get-package-networking-enabled',pkg),rule,'Package network rule was not restored');
     assert.equal(connection('get-chain3-enabled'),chain,'Test firewall state was not restored');
+    if (added) {
+      assert.ok(find(await storeMenu(),'Remove from dock'), 'Temporary favorite missing');
+      await click('Remove from dock');
+      shell('am','start','-W','-n',pkg + '/.MainActivity','--es','zp_open','home');
+      const restored = await waitText(t => t === 'All Apps');
+      assert.ok(!restored.some(n => n.label === 'Google Play Store' && n['long-clickable'] === 'true'),
+        'Temporary favorite was not restored');
+      record('PASS restored original dock after the temporary offline app-icon check');
+    }
   }
 }
 async function gatewayTest() {
@@ -288,6 +316,7 @@ async function gatewayTest() {
     } finally { clearTimeout(timer); }
   };
   const command = cmd => { harness.stdin.write(cmd + '\n'); return receive(); };
+  let fixturePaired = false;
   async function enter(node, text, clear = false) {
     tap(node);
     // The address, port and code fields belong to this disposable pairing form.
@@ -308,6 +337,7 @@ async function gatewayTest() {
     const pending = await waitText(t => t.includes('Approve this TV on your PC'), 20);
     assert.equal((await command('pending')).pending, 1);
     const approved = await command('approve');
+    fixturePaired = !!approved.ok;
     assert.ok(approved.ok && pending.some(n => n.text.replaceAll('-','').includes(approved.tvCode)),
       'Fixture and TV verification codes differ');
     const online = await waitText(t => t === 'Online · pinned TLS', 20);
@@ -331,8 +361,12 @@ async function gatewayTest() {
     assert.ok((await command('revoke')).ok);
     await waitText(t => t === 'Revoked by PC' || t === 'Not paired', 15);
     assert.equal((await command('devices')).devices, 0);
+    fixturePaired = false;
     record('PASS disposable device revoked on PC');
   } finally {
+    if (fixturePaired && harness.exitCode === null && harness.stdin.writable) {
+      await command('revoke').catch(() => {});
+    }
     if (harness.exitCode === null && harness.stdin.writable) harness.stdin.end('exit\n');
     const deadline = setTimeout(() => harness.kill(), 15000);
     try { await closed; } finally { clearTimeout(deadline); }

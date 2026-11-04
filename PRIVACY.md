@@ -7,7 +7,7 @@ third-party libraries.
 
 | Data | Where | Leaves the TV? |
 |---|---|---|
-| Dock order and settings | App-private storage | No |
+| Dock order, settings and up to six recently opened app package names | App-private storage | No |
 | Up to 30 user and assistant text turns, plus the speak-replies preference | App-private storage excluded from backup | Submitted questions go to the paired PC. Replaying local history makes no request. |
 | Saved developer links, local shortcut codes and optional checksums | App-private catalog | The requested URL is sent to its host on download |
 | Transfer history, exact requested/final URL, APK metadata, hash and files | Private database and files excluded from backup | Only the selected file is passed to the Android installer |
@@ -32,7 +32,7 @@ With JARVIS paired, and only while the Assistant screen is open, the TV connects
 (TLS 1.3, certificate pinned). It sends the messages you type and receives the replies. Your conversations
 are stored by the OpenPulse gateway on the paired PC under its own settings. The TV keeps a bounded text copy for offline reading. Clear TV history deletes that copy and prevents re-import of older PC messages. New PC conversation resets the paired conversation after gateway confirmation. Forgetting the PC or receiving revocation clears the local transcript. Only message roles and text enter that store. Pairing forms, device tokens and provider keys are excluded.
 
-Push-to-talk launches Android’s installed recognizer only when the viewer selects Talk. That service may process audio online. The returned text is editable and sent only when the viewer selects Send. ZeroPulse does not request microphone permission, record audio, retain recordings or intercept the system microphone key. Optional spoken replies pass reply text to Android’s selected TTS engine and use media volume. Select Stop speaking or turn off Speak replies to silence it.
+Push-to-talk launches Android’s installed recognizer only when the viewer selects Talk. That service may process audio online. The returned text is editable and sent only when the viewer selects Send. ZeroPulse does not request microphone permission, record audio, retain recordings or intercept the system microphone key. Optional spoken replies pass reply text to Android’s selected TTS engine and use media volume. Preview voice speaks a short local phrase only when selected. Select Stop speaking or turn off Speak replies to silence it.
 
 The AI model is whatever your OpenPulse gateway is configured to use. If that gateway uses a cloud model
 provider, your messages go to that provider under the gateway's configuration — ZeroPulse TV has no control

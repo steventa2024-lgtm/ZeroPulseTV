@@ -1,5 +1,6 @@
 """Build the emulator-only test APK and its permission-free fixture. No device commands."""
 import argparse
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -53,6 +54,7 @@ def build(sdk, jdk, bt, key, output):
         with zipfile.ZipFile(qa, "a") as apk:
             apk.write(tmp / "classes.dex", "classes.dex")
             apk.write(assets / "fixture.apk", "assets/fixture.apk")
+            apk.writestr("assets/fixture.sha256", hashlib.sha256((assets / "fixture.apk").read_bytes()).hexdigest())
         sign(qa, output)
 
 if __name__ == "__main__":

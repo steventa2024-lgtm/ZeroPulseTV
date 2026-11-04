@@ -45,7 +45,8 @@ class Emulator:
             raise RuntimeError("Missing test document grants: " + result)
 
     def phase(self, phase, *extra):
-        self.grant_fixtures()
+        if phase != "inflight-resume":
+            self.grant_fixtures()
         result = self.shell("am", "instrument", "-w", "-e", "phase", phase, *extra, "tv.calmhome.downloadqa/.DownloadRunner")
         (self.out / (phase + ".txt")).write_text(result, encoding="utf-8")
         if "result=PASS " + phase not in result:
@@ -215,6 +216,51 @@ class Emulator:
             raise RuntimeError("No terminal installation result appeared in the launcher.")
         self.phase(phase, "-e", "id", id_)
 
+    def inflight_reboot(self):
+        before = int(self.shell("settings", "get", "global", "boot_count").strip())
+        self.grant_fixtures()
+        log = self.out / "inflight-seed.txt"
+        with log.open("w", encoding="utf-8") as stream:
+            process = subprocess.Popen(self.adb + ["shell", "am", "instrument", "-w", "-e", "phase",
+                    "inflight-seed", "tv.calmhome.downloadqa/.DownloadRunner"], stdout=stream, stderr=subprocess.STDOUT)
+            try:
+                deadline = time.monotonic() + 100
+                while time.monotonic() < deadline:
+                    lines = log.read_text(encoding="utf-8")
+                    match = re.search(r"downloadId=(\d+)", lines)
+                    if match and "bytesBefore=1024" in lines and "INSTRUMENTATION_STATUS_CODE: 1" in lines:
+                        break
+                    if process.poll() is not None:
+                        raise RuntimeError("Partial transfer did not reach checkpoint: " + lines)
+                    time.sleep(.2)
+                else:
+                    raise RuntimeError("Timeout waiting for partial transfer checkpoint")
+                download_id = match[1]
+                self.command("reboot")
+                self.online()
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                process.wait(timeout=10)
+        after = int(self.shell("settings", "get", "global", "boot_count").strip())
+        if after <= before:
+            raise RuntimeError("Android boot count did not advance")
+        # Probe only the fixture process: allow the OS job to run before opening any launcher UI,
+        # instrumenting the launcher or providing fresh grants on the new boot.
+        deadline = time.monotonic() + 140
+        while time.monotonic() < deadline:
+            probe = self.shell("content", "call", "--uri", "content://tv.calmhome.downloadqa.samples", "--method", "probe")
+            if re.search(rf"reopened={after}\b", probe):
+                break
+            time.sleep(2)
+        else:
+            raise RuntimeError("Android did not reopen the partially transferred fixture after boot")
+        time.sleep(3)  # Allow the short APK to finish inspection before instrumenting the process.
+        result = self.phase("inflight-resume", "-e", "id", download_id)
+        (self.out / "inflight-result.txt").write_text(
+            f"Boot count {before} -> {after}\nDownload ID {download_id}\nCheckpoint 1024 bytes\n{probe}\n{result}", encoding="utf-8")
+        print("In-flight reboot recovery: PASS", flush=True)
+
     def restart_recovery(self):
         seed = self.phase("seed")
         (self.out / "reboot-seed.txt").write_text(seed, encoding="utf-8")
@@ -258,5 +304,10 @@ if __name__ == "__main__":
     p.add_argument("--adb", default="adb")
     p.add_argument("--serial", required=True)
     p.add_argument("--evidence", required=True, type=Path)
+    p.add_argument("--inflight-only", action="store_true", help="run only the gated mid-transfer reboot regression")
     opts = p.parse_args()
-    Emulator(opts.adb, opts.serial, opts.evidence).run()
+    emulator = Emulator(opts.adb, opts.serial, opts.evidence)
+    if opts.inflight_only:
+        emulator.inflight_reboot()
+    else:
+        emulator.run()

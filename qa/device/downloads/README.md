@@ -16,3 +16,9 @@ The run assumes the matching development launcher is already installed. It prepa
 For installer tests, instrumentation seeds an inspected fixture and exits. The host then operates **Manage Downloads → download details → Install with Android approval** through the visible launcher UI. It locates ZeroPulse's source-permission switch in Android TV settings. It chooses Cancel and Install in separate real system confirmation dialogs and captures the results. The allow case activates **Add to dock** and **Open app** in download details. It checks the fixture's actual foreground activity. A subsequent assertion opens the persisted history, verifies Android's callback result, checks the stored dock package, and removes only the test row. The installed fixture and favorite remain available for launcher smoke tests.
 
 The output directory contains screenshots, native view hierarchies, per-phase text results and emulator diagnostics. Check the aggregated outcomes as well as `result=PASS` in individual instrumentation logs. The feature-branch CI workflow uploads emulator evidence separately from physical-TV evidence.
+
+To reboot during an actual transfer, use the same emulator-only runner with `--inflight-only`. A signed fixture stream provides 1,024 bytes and withholds the remainder throughout the first boot. The runner reboots after observing those transferred bytes, then waits for Android to reopen the document through its persisted job and read grant. It verifies the same history ID, independent fixture SHA-256, full byte count and parsed package after reboot.
+
+```sh
+python qa/device/downloads/emulator.py --serial "$EMU" --evidence "$TMPDIR/ZeroPulse-inflight-reboot" --inflight-only
+```

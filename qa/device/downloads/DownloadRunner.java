@@ -6,6 +6,10 @@ import tv.calmhome.launcher.data.Prefs;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.content.UriPermission;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import tv.calmhome.launcher.downloads.DownloadRecord;
 import tv.calmhome.launcher.downloads.Downloads;
 import static tv.calmhome.launcher.downloads.DownloadRecord.State.*;
@@ -22,8 +26,40 @@ public final class DownloadRunner extends Instrumentation {
             Downloads d = Downloads.get(getTargetContext());
             String phase = args.getString("phase", "verify");
             // Starting instrumentation force-stops the target, dropping prior temporary URI grants.
-            if (!phase.equals("resume")) getTargetContext().getContentResolver().call(FixtureProvider.VALID, "grant", null, null);
-            if (phase.equals("prepare")) {
+            if (!phase.equals("resume") && !phase.equals("inflight-resume")) getTargetContext().getContentResolver().call(FixtureProvider.VALID, "grant", null, null);
+            if (phase.equals("inflight-seed")) {
+                getTargetContext().getContentResolver().call(FixtureProvider.SLOW, "arm", null, null);
+                long id = d.importFile(FixtureProvider.SLOW, fixtureHash());
+                long deadline = SystemClock.elapsedRealtime() + 90000;
+                DownloadRecord partial;
+                do {
+                    partial = d.find(id);
+                    if (partial.state == FAILED || SystemClock.elapsedRealtime() >= deadline)
+                        throw new AssertionError("Expected a gated partial transfer, got " + partial.state + " " + partial.error);
+                    Thread.sleep(100);
+                } while (partial.state != DOWNLOADING || partial.bytes != 1024 || partial.bytes >= partial.total);
+                check(persistedFixtureGrant(), "Missing persisted fixture grant before reboot");
+                result.putString("downloadId", String.valueOf(id));
+                result.putString("bytesBefore", String.valueOf(partial.bytes));
+                result.putString("total", String.valueOf(partial.total));
+                sendStatus(1, result); // The host reboots this emulator with the transfer still active.
+                Thread.sleep(120000);
+                throw new AssertionError("Host did not reboot during the gated transfer.");
+            } else if (phase.equals("inflight-resume")) {
+                long id = Long.parseLong(args.getString("id"));
+                check(persistedFixtureGrant(), "Read grant was lost across reboot");
+                DownloadRecord recovered = d.find(id);
+                String expected = fixtureHash();
+                check(recovered.state == COMPLETED && recovered.bytes == recovered.total && recovered.bytes > 1024,
+                        "Incomplete recovered transfer: " + recovered.state + " " + recovered.error);
+                check(expected.equals(recovered.expectedSha256) && expected.equals(recovered.sha256), "Recovered digest mismatch");
+                check("tv.calmhome.downloadfixture".equals(recovered.packageName) && recovered.versionCode == 1,
+                        "Recovered APK metadata mismatch");
+                result.putString("bytesAfter", String.valueOf(recovered.bytes));
+                result.putString("sha256", recovered.sha256);
+                result.putString("package", recovered.packageName);
+                d.remove(id);
+            } else if (phase.equals("prepare")) {
                 Prefs prefs = new Prefs(getTargetContext());
                 java.util.List<String> dock = prefs.dock();
                 if (dock.remove("tv.calmhome.downloadfixture")) prefs.setDock(dock);
@@ -85,6 +121,19 @@ public final class DownloadRunner extends Instrumentation {
             finish(Activity.RESULT_CANCELED, result);
         }
     }
+    private boolean persistedFixtureGrant() {
+        for (UriPermission grant : getTargetContext().getContentResolver().getPersistedUriPermissions())
+            if (FixtureProvider.SLOW.equals(grant.getUri()) && grant.isReadPermission()) return true;
+        return false;
+    }
+
+    private String fixtureHash() throws Exception {
+        try (BufferedReader input = new BufferedReader(new InputStreamReader(
+                getContext().getAssets().open("fixture.sha256"), StandardCharsets.US_ASCII))) {
+            return input.readLine();
+        }
+    }
+
     private DownloadRecord await(Downloads d, long id) throws InterruptedException {
         long deadline = SystemClock.elapsedRealtime() + 180000;
         for (;;) {

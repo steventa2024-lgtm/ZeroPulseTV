@@ -67,6 +67,9 @@ jobs:
           adb -s "$EMU" install "$RUNNER_TEMP/launcher.apk"
           adb -s "$EMU" install "$RUNNER_TEMP/fixture-qa.apk"
           python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence"
+      - name: Reboot during a partially transferred APK
+        run: |
+          python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence/inflight" --inflight-only
       - uses: actions/upload-artifact@v4
         if: always()
         with:

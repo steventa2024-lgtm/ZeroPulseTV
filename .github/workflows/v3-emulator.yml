@@ -43,9 +43,14 @@ jobs:
           test -c /dev/kvm
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
           # Use one explicit AVD directory for both avdmanager and the emulator.
-          export ANDROID_USER_HOME="$RUNNER_TEMP/zp-android"
-          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
-          mkdir -p "$ANDROID_AVD_HOME" "$RUNNER_TEMP/emulator-evidence"
+          export ANDROID_USER_HOME="$HOME/.android"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/zp-android/avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME" "$RUNNER_TEMP/emulator-evidence"
+          # QEMU reads ~/.android/adbkey and injects its public half at boot on a new AVD.
+          if [[ ! -s "$ANDROID_USER_HOME/adbkey" ]]; then adb keygen "$ANDROID_USER_HOME/adbkey"; fi
+          export ADB_VENDOR_KEYS="$ANDROID_USER_HOME/adbkey"
+          echo "ADB_VENDOR_KEYS=$ADB_VENDOR_KEYS" >> "$GITHUB_ENV"
+          adb start-server
           avd_path="$ANDROID_AVD_HOME/zp-ci-tv.avd"
           printf 'no\n' | avdmanager create avd -n zp-ci-tv -p "$avd_path" -k 'system-images;android-34;android-tv;x86' -d tv_1080p
           test -s "$avd_path/config.ini"

@@ -27,10 +27,8 @@ import tv.calmhome.launcher.screens.Panel;
  * clock whose numerals are the glass). Exactly five destinations: Home, Apps, Downloads, Inputs and Settings.
  */
 public final class Navigation extends LinearLayout {
-    /** The destinations, in order. Standalone ZPAPPS swaps launcher-only Home/Inputs for Toolbox. */
-    public static final String[] TABS = tv.calmhome.launcher.BuildConfig.STANDALONE_ZPAPPS
-            ? new String[]{"Toolbox", "Downloads", "Wallpapers", "Settings"}
-            : new String[]{"Home", "Apps", "Downloads", "Inputs", "Settings"};
+    /** The destinations, in order. (The Assistant was the sixth until it was removed in 3.0.0-beta.7.) */
+    public static final String[] TABS = {"Home", "Apps", "Downloads", "Inputs", "Settings"};
     /**
      * Liquid Glass header: the rail's height, and the focus pill's height and width, in dp. With five destinations each pill is
      * 102 dp (it was 84 dp for six): 5 x (102 + 6) = 6 x (84 + 6), so the rail keeps exactly the width and place it had between the
@@ -83,9 +81,7 @@ public final class Navigation extends LinearLayout {
         tabs.setGravity(Gravity.CENTER); tabs.setClipChildren(false);
         bar.addView(tabs, new LayoutParams(0, Widgets.WRAP, 1));
         String[] labels = TABS;
-        Glyph.Kind[] icons = tv.calmhome.launcher.BuildConfig.STANDALONE_ZPAPPS
-                ? new Glyph.Kind[]{Glyph.Kind.GRID, Glyph.Kind.DOWNLOAD, Glyph.Kind.GRID, Glyph.Kind.GEAR}
-                : new Glyph.Kind[]{Glyph.Kind.HOME, Glyph.Kind.GRID, Glyph.Kind.DOWNLOAD, Glyph.Kind.INPUTS, Glyph.Kind.GEAR};
+        Glyph.Kind[] icons = {Glyph.Kind.HOME,Glyph.Kind.GRID,Glyph.Kind.DOWNLOAD,Glyph.Kind.INPUTS,Glyph.Kind.GEAR};
         for (int i = 0; i < labels.length; i++) {
             String tab = labels[i];
             TextView item = w.navItem(tab, tab.equals(selected), v -> onTab.accept(tab));
@@ -186,9 +182,7 @@ public final class Navigation extends LinearLayout {
         glassSelected = selected;
         glassOnTab = onTab;
         float density = c.getResources().getDisplayMetrics().density;
-        PulseLogo headerLogo = new PulseLogo(c, t.dp(20)).luminous();
-        if (tv.calmhome.launcher.BuildConfig.STANDALONE_ZPAPPS) headerLogo.name("ZPAPPS").suffix("", 0);
-        addView(headerLogo, new LayoutParams(Widgets.WRAP, Widgets.WRAP));      // the concept's luminous mark and wordmark
+        addView(new PulseLogo(c, t.dp(20)).luminous(), new LayoutParams(Widgets.WRAP, Widgets.WRAP));      // the concept's luminous mark and wordmark
         glassNav = new GlassTopNavView(c);
         glassNav.setLabelSp(13);
         glassNav.setReducedMotion(t.reducedMotion);                     // the focus glides between destinations, unless motion is reduced

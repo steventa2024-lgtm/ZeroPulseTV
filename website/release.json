@@ -17,10 +17,10 @@
   "zpapps": {
     "version": "1.0.0",
     "versionCode": 1001,
-    "packageName": "tv.zeropulse.zpapps",
+    "packageName": "com.zeropulse.zpapps",
     "filename": "ZPAPPS-1.0.0-1001.apk",
-    "bytes": 10370769,
-    "sha256": "c493fc0736afdf3ac657d91bed90a0d0bce2e8b1bc55b241b463ad0c26529116",
+    "bytes": 8515469,
+    "sha256": "4c59a91646f003da6e992ac2b54db515ea2d8d69b890bf4a558ae1a1a23d4577",
     "certificate": "0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd",
     "apk": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/zpapps-v1.0.0/ZPAPPS-1.0.0-1001.apk",
     "notes": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/zpapps-v1.0.0",

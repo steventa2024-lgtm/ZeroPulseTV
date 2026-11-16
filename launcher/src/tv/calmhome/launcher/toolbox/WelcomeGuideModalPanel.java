@@ -151,14 +151,7 @@ public final class WelcomeGuideModalPanel extends Panel {
         permCard.addView(permBadge, new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f));
         permBtn = pillButton("Grant Install Permission", v -> {
             if (c instanceof Activity) {
-                ToolboxEngine.PermissionRoute route = ToolboxEngine.get(c).openInstallPermissionSettings((Activity) c);
-                if (route == ToolboxEngine.PermissionRoute.FIRE_OS_SECURITY_FALLBACK
-                        || route == ToolboxEngine.PermissionRoute.UNAVAILABLE) {
-                    if (permBadge != null) {
-                        permBadge.setText("On Fire TV: " + ToolboxEngine.FIRE_TV_PERMISSION_HINT);
-                    }
-                    host.toast("On Fire TV: " + ToolboxEngine.FIRE_TV_PERMISSION_HINT);
-                }
+                ToolboxEngine.get(c).openInstallPermissionSettings((Activity) c);
             }
         });
         permCard.addView(permBtn, new LinearLayout.LayoutParams(Widgets.WRAP, t.dp(36)));

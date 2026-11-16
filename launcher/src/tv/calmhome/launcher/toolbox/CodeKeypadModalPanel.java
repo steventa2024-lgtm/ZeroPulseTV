@@ -91,9 +91,7 @@ public final class CodeKeypadModalPanel extends Panel {
         input.setHintTextColor(Theme.MUTED_GRAY);
         input.setPadding(t.dp(10), t.dp(8), t.dp(10), t.dp(8));
         input.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_GO
-                    || (event != null && event.getAction() == KeyEvent.ACTION_DOWN
-                    && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER || event.getKeyCode() == KeyEvent.KEYCODE_NUMPAD_ENTER))) {
+            if (actionId == EditorInfo.IME_ACTION_GO) {
                 submit();
                 return true;
             }

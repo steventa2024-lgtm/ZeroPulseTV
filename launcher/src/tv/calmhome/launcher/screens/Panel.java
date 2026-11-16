@@ -176,16 +176,8 @@ public abstract class Panel {
         col.setClipToPadding(false);
         col.setPadding(t.safeX(), t.safeY(), t.safeX(), t.safeY());
 
-        String tab;
-        if (tv.calmhome.launcher.BuildConfig.STANDALONE_ZPAPPS) {
-            tab = this instanceof tv.calmhome.launcher.toolbox.ZpAppsPanel ? "Toolbox"
-                    : this instanceof DownloadPage ? "Downloads"
-                    : (this instanceof WallpapersPanel || this instanceof WallpaperInfoPanel) ? "Wallpapers"
-                    : "Settings";
-        } else {
-            tab = this instanceof AppsPanel ? "Apps" : this instanceof InputsPanel ? "Inputs" :
-                    this instanceof DownloadPage ? "Downloads" : "Settings";
-        }
+        String tab = this instanceof AppsPanel ? "Apps" : this instanceof InputsPanel ? "Inputs" :
+                this instanceof DownloadPage ? "Downloads" : "Settings";
         navigation = new Navigation(host, tab);
         col.addView(navigation, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
         TextView h = t.text(c, Theme.T_HEADING, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);

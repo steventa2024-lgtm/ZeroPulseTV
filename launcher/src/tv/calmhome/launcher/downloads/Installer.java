@@ -189,7 +189,7 @@ final class Installer {
         if (preparing.contains(r.id)) return;
         PackageInstaller.SessionInfo session = r.sessionId < 0 ? null : os.getSessionInfo(r.sessionId);
         // After process loss, an unsealed session has never been handed to Android. Permit an explicit retry.
-        if (session == null || (Build.VERSION.SDK_INT >= 26 && !session.isSealed())) {
+        if (session == null || !session.isSealed()) {
             if (session != null) abandon(r.sessionId);
             r.state = FAILED; r.error = "Installer session ended before confirmation. Select Retry.";
             downloads.store.save(r);

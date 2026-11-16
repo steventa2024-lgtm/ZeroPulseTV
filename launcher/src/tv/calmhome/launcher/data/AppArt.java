@@ -220,7 +220,7 @@ public final class AppArt {
         int boxW = Math.max(1, tileW - 2 * m), boxH = Math.max(1, tileH - 2 * m);
         float radius = TileArt.bannerRadius(tileH);
         int srcW = icon.getIntrinsicWidth(), srcH = icon.getIntrinsicHeight();
-        if (android.os.Build.VERSION.SDK_INT >= 26 && icon instanceof AdaptiveIconDrawable) {
+        if (icon instanceof AdaptiveIconDrawable) {
             Drawable back = ((AdaptiveIconDrawable) icon).getBackground(), front = ((AdaptiveIconDrawable) icon).getForeground();
             if (back != null) {
                 Bitmap out = Bitmap.createBitmap(boxW, boxH, Bitmap.Config.ARGB_8888);
@@ -290,14 +290,13 @@ public final class AppArt {
         Bitmap out = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(out);
         int dw = side, dh = side;
-        boolean adaptive = android.os.Build.VERSION.SDK_INT >= 26 && icon instanceof AdaptiveIconDrawable;
-        if (!adaptive && srcW > 0 && srcH > 0 && srcW != srcH) {
+        if (!(icon instanceof AdaptiveIconDrawable) && srcW > 0 && srcH > 0 && srcW != srcH) {
             float s = Math.min(side / (float) srcW, side / (float) srcH);          // never stretch a non-square icon
             dw = Math.max(1, Math.round(srcW * s));
             dh = Math.max(1, Math.round(srcH * s));
         }
         draw(icon, canvas, (side - dw) / 2, (side - dh) / 2, dw, dh);
-        if (!adaptive) {
+        if (!(icon instanceof AdaptiveIconDrawable)) {
             int[] px = new int[side * side];
             out.getPixels(px, 0, side, 0, 0, side, side);
             if (TileArt.opaqueCorners(px, side, side)) out = rounded(out, TileArt.iconRadius(side));

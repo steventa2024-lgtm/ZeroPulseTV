@@ -158,43 +158,23 @@ public final class ToolboxEngine {
                 .apply();
     }
 
-    public static final String FIRE_TV_PERMISSION_HINT =
-            "Settings → My Fire TV → Developer Options → Install unknown apps → ZPAPPS";
-
-    public enum PermissionRoute {
-        NOT_REQUIRED,
-        MANAGE_UNKNOWN_SOURCES,
-        FIRE_OS_SECURITY_FALLBACK,
-        UNAVAILABLE
-    }
-
     public boolean canRequestPackageInstalls() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true;
         return appContext.getPackageManager().canRequestPackageInstalls();
     }
 
-    public PermissionRoute openInstallPermissionSettings(Activity activity) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return PermissionRoute.NOT_REQUIRED;
+    public void openInstallPermissionSettings(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         try {
             Intent intent = new Intent(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:" + appContext.getPackageName())
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(intent);
-            return PermissionRoute.MANAGE_UNKNOWN_SOURCES;
-        } catch (android.content.ActivityNotFoundException | SecurityException primaryEx) {
+        } catch (RuntimeException ignored) {
             try {
                 activity.startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return PermissionRoute.FIRE_OS_SECURITY_FALLBACK;
-            } catch (android.content.ActivityNotFoundException | SecurityException secondaryEx) {
-                try {
-                    activity.startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                    return PermissionRoute.FIRE_OS_SECURITY_FALLBACK;
-                } catch (RuntimeException ignoredFallback) {
-                    return PermissionRoute.UNAVAILABLE;
-                }
-            }
+            } catch (RuntimeException ignoredSecondary) { }
         }
     }
 

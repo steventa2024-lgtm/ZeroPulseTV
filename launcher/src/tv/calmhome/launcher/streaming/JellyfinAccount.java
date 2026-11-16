@@ -9,6 +9,7 @@ import android.security.keystore.KeyProperties;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.util.Base64;
 import java.util.UUID;
 
 import javax.crypto.Cipher;
@@ -111,8 +112,7 @@ public final class JellyfinAccount {
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
             c.init(Cipher.ENCRYPT_MODE, key(true));
             byte[] ct = c.doFinal(token.getBytes(StandardCharsets.UTF_8));
-            return android.util.Base64.encodeToString(c.getIV(), android.util.Base64.NO_WRAP) + ":"
-                    + android.util.Base64.encodeToString(ct, android.util.Base64.NO_WRAP);
+            return Base64.getEncoder().encodeToString(c.getIV()) + ":" + Base64.getEncoder().encodeToString(ct);
         }
 
         @Override
@@ -120,8 +120,8 @@ public final class JellyfinAccount {
             String[] p = sealed.split(":", 2);
             if (p.length != 2) throw new GeneralSecurityException("format");
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
-            c.init(Cipher.DECRYPT_MODE, key(false), new GCMParameterSpec(128, android.util.Base64.decode(p[0], android.util.Base64.DEFAULT)));
-            return new String(c.doFinal(android.util.Base64.decode(p[1], android.util.Base64.DEFAULT)), StandardCharsets.UTF_8);
+            c.init(Cipher.DECRYPT_MODE, key(false), new GCMParameterSpec(128, Base64.getDecoder().decode(p[0])));
+            return new String(c.doFinal(Base64.getDecoder().decode(p[1])), StandardCharsets.UTF_8);
         }
 
         @Override

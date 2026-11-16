@@ -15,35 +15,18 @@ android {
     compileSdk = 36
 
     defaultConfig {
+        // Unchanged since Calm Home 1.0: the TV's Home setting and the saved dock belong to this ID.
+        applicationId = 'tv.calmhome.launcher'
         minSdk = 26
         targetSdk = 34
+        // In-place update from the owner's 2.2 development build (2201).
+        versionCode = 3006
+        // Same versionCode as the installed 3006 on purpose: the 3006 APK and the 3007 recovery APK can both still be installed over this
+        // build (a lower versionCode is refused), so going back stays possible. The name and build id tell this build apart.
+        // 3.0.0-beta.8-zpapps (UI3): Clean Liquid Glass Home with vertical transitional All Apps & ZPAPPS carousel.
+        versionName = '3.0.0-beta.8-zpapps'
         buildConfigField 'String', 'ZP_COMMIT', '"fcde516+ui-refine+zpapps-native"'
-    }
-
-    flavorDimensions 'edition'
-    productFlavors {
-        zeropulse {
-            dimension 'edition'
-            // Unchanged since Calm Home 1.0: the TV's Home setting and the saved dock belong to this ID.
-            applicationId = 'tv.calmhome.launcher'
-            // In-place update from the owner's 2.2 development build (2201).
-            versionCode = 3006
-            // Same versionCode as the installed 3006 on purpose: the 3006 APK and the 3007 recovery APK can both still be installed over this
-            // build (a lower versionCode is refused), so going back stays possible. The name and build id tell this build apart.
-            // 3.0.0-beta.8-zpapps (UI3): Clean Liquid Glass Home with vertical transitional All Apps & ZPAPPS carousel.
-            versionName = '3.0.0-beta.8-zpapps'
-            buildConfigField 'String', 'ZP_BUILD', '"3006-zpapps-ui3"'
-            buildConfigField 'boolean', 'STANDALONE_ZPAPPS', 'false'
-        }
-        zpapps {
-            dimension 'edition'
-            applicationId = 'tv.zeropulse.zpapps'
-            minSdk = 25
-            versionCode = 1001
-            versionName = '1.0.0'
-            buildConfigField 'String', 'ZP_BUILD', '"1001-zpapps-firetv"'
-            buildConfigField 'boolean', 'STANDALONE_ZPAPPS', 'true'
-        }
+        buildConfigField 'String', 'ZP_BUILD', '"3006-zpapps-ui3"'
     }
 
     sourceSets {
@@ -53,20 +36,9 @@ android {
             res.srcDirs = ['res']
             assets.srcDirs = ['assets']
         }
-        zeropulse {
-        }
-        zpapps {
-            manifest.srcFile 'zpapps/AndroidManifest.xml'
-            res.srcDirs = ['zpapps/res']
-        }
         test {
-            resources.srcDirs = ['test-resources']
-        }
-        testZeropulse {
             java.srcDirs = ['test', '../qa/robolectric']
-        }
-        testZpapps {
-            java.srcDirs = ['zpapps/test']
+            resources.srcDirs = ['test-resources']
         }
     }
 
@@ -86,7 +58,7 @@ android {
                 storePassword = System.getenv('ZP_KEYSTORE_PASS')
                 keyAlias = System.getenv('ZP_KEY_ALIAS')
                 keyPassword = System.getenv('ZP_KEYSTORE_PASS')
-                enableV1Signing = true
+                enableV1Signing = false
                 enableV2Signing = true
                 enableV3Signing = true
             }

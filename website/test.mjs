@@ -20,10 +20,10 @@ test('release pins standalone ZPAPPS APK and Fire TV Downloader shortcode 162477
  assert.ok(config.zpapps);
  assert.equal(config.zpapps.version, '1.0.0');
  assert.equal(config.zpapps.versionCode, 1001);
- assert.equal(config.zpapps.packageName, 'tv.zeropulse.zpapps');
+ assert.equal(config.zpapps.packageName, 'com.zeropulse.zpapps');
  assert.equal(config.zpapps.filename, 'ZPAPPS-1.0.0-1001.apk');
- assert.equal(config.zpapps.bytes, 10370769);
- assert.equal(config.zpapps.sha256, 'c493fc0736afdf3ac657d91bed90a0d0bce2e8b1bc55b241b463ad0c26529116');
+ assert.equal(config.zpapps.bytes, 8515469);
+ assert.equal(config.zpapps.sha256, '4c59a91646f003da6e992ac2b54db515ea2d8d69b890bf4a558ae1a1a23d4577');
  assert.equal(config.zpapps.certificate, '0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd');
  assert.equal(config.zpapps.apk, 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/zpapps-v1.0.0/ZPAPPS-1.0.0-1001.apk');
  assert.equal(config.zpapps.downloaderCode, '1624770');
@@ -33,7 +33,7 @@ test('release pins standalone ZPAPPS APK and Fire TV Downloader shortcode 162477
  assert.ok(html.includes('{{ZPAPPS_DOWNLOADER_CODE}}') && html.includes('data-copy="{{ZPAPPS_DOWNLOADER_CODE}}"'));
  assert.ok(html.includes('Copy Downloader Code: {{ZPAPPS_DOWNLOADER_CODE}}'));
  assert.ok(html.includes('aftv.news/{{ZPAPPS_DOWNLOADER_CODE}}'));
- assert.ok(html.includes('href="{{ZPAPPS_APK}}"') && html.includes('{{ZPAPPS_FILENAME}}') && html.includes('10.37 MB'));
+ assert.ok(html.includes('href="{{ZPAPPS_APK}}"') && html.includes('{{ZPAPPS_FILENAME}}') && html.includes('8.52 MB'));
  assert.ok(html.includes('{{ZPAPPS_SHA256}}'));
 });
 test('all download CTA hrefs share the authoritative template', () => {

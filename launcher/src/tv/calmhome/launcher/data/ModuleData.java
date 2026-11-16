@@ -5,7 +5,6 @@ import android.content.Context;
 import android.os.Process;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.util.List;
 
 /**
@@ -74,10 +73,22 @@ public final class ModuleData {
 
     static void deleteTree(File f) {
         // A link is removed itself, never followed, so nothing outside the module's folder can be reached.
-        File[] kids = Files.isSymbolicLink(f.toPath()) ? null : f.listFiles();
+        File[] kids = isSymlink(f) ? null : f.listFiles();
         if (kids != null) for (File k : kids) deleteTree(k);
         // Best effort: a file that cannot be deleted is left in place.
         //noinspection ResultOfMethodCallIgnored
         f.delete();
+    }
+
+    private static boolean isSymlink(File f) {
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            return java.nio.file.Files.isSymbolicLink(f.toPath());
+        }
+        try {
+            File canon = f.getParent() == null ? f : new File(f.getParentFile().getCanonicalFile(), f.getName());
+            return !canon.getCanonicalFile().equals(canon.getAbsoluteFile());
+        } catch (java.io.IOException e) {
+            return false;
+        }
     }
 }

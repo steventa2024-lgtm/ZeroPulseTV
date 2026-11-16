@@ -207,13 +207,23 @@ public final class Downloads {
         DownloadRecord r = require(id);
         if (r.state == AWAITING_APPROVAL) { installer.resume(activity, r); return; }
         if (r.state != COMPLETED) throw new IllegalStateException("Finish APK inspection before installing.");
-        if (!context.getPackageManager().canRequestPackageInstalls()) {
-            r.error = "Allow this source in Android settings, then select Install again."; store.save(r);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                && !context.getPackageManager().canRequestPackageInstalls()) {
+            r.error = "Allow this source in settings (" + tv.calmhome.launcher.toolbox.ToolboxEngine.FIRE_TV_PERMISSION_HINT + "), then select Install again.";
+            store.save(r);
             try {
                 activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.fromParts("package", context.getPackageName(), null)));
             } catch (android.content.ActivityNotFoundException e) {
-                throw new IllegalStateException("This TV cannot open installation-source settings.");
+                try {
+                    activity.startActivity(new Intent(Settings.ACTION_SECURITY_SETTINGS));
+                } catch (android.content.ActivityNotFoundException sec) {
+                    try {
+                        activity.startActivity(new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
+                    } catch (android.content.ActivityNotFoundException dev) {
+                        throw new IllegalStateException("On Fire TV: " + tv.calmhome.launcher.toolbox.ToolboxEngine.FIRE_TV_PERMISSION_HINT);
+                    }
+                }
             }
             return;
         }

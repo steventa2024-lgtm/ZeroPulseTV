@@ -38,9 +38,10 @@ android {
         zpapps {
             dimension 'edition'
             applicationId = 'tv.zeropulse.zpapps'
+            minSdk = 25
             versionCode = 1001
             versionName = '1.0.0'
-            buildConfigField 'String', 'ZP_BUILD', '"1001-zpapps-standalone"'
+            buildConfigField 'String', 'ZP_BUILD', '"1001-zpapps-firetv"'
             buildConfigField 'boolean', 'STANDALONE_ZPAPPS', 'true'
         }
     }
@@ -85,7 +86,7 @@ android {
                 storePassword = System.getenv('ZP_KEYSTORE_PASS')
                 keyAlias = System.getenv('ZP_KEY_ALIAS')
                 keyPassword = System.getenv('ZP_KEYSTORE_PASS')
-                enableV1Signing = false
+                enableV1Signing = true
                 enableV2Signing = true
                 enableV3Signing = true
             }

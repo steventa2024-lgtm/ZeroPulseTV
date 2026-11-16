@@ -233,7 +233,7 @@ final class GlassFinishView extends View {
             Path hole = new Path();
             float left = (w - holeW) / 2f, top = (h - holeH) / 2f;
             hole.addRoundRect(new RectF(left, top, left + holeW, top + holeH), holeRadius, holeRadius, Path.Direction.CW);
-            canvas.clipOutPath(hole);
+            clipOut(canvas, hole);
         }
 
         fill.setStyle(Paint.Style.FILL);
@@ -265,5 +265,11 @@ final class GlassFinishView extends View {
         canvas.drawPath(inset, stroke);
         canvas.restore();
         canvas.restore();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void clipOut(Canvas canvas, Path hole) {
+        if (android.os.Build.VERSION.SDK_INT >= 26) canvas.clipOutPath(hole);
+        else canvas.clipPath(hole, android.graphics.Region.Op.DIFFERENCE);
     }
 }

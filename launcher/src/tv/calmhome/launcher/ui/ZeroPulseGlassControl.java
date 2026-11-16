@@ -39,7 +39,7 @@ abstract class ZeroPulseGlassControl extends FrameLayout {
         setClipToPadding(false);
         setFocusable(true);
         setClickable(true);
-        setDefaultFocusHighlightEnabled(false);
+        if (android.os.Build.VERSION.SDK_INT >= 26) setDefaultFocusHighlightEnabled(false);
         glass = new ZeroPulseGlassTileBackground(c, kit, shape, designHeightPx);
         addView(glass, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         content = new FrameLayout(c);

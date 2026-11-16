@@ -372,8 +372,12 @@ public final class Widgets {
             tv.setSingleLine(true);
             tv.setEllipsize(TextUtils.TruncateAt.END);
             tv.setGravity(Gravity.CENTER);
-            tv.setAutoSizeTextTypeUniformWithConfiguration(Math.max(1, Math.round(9 * t.scale)), Math.max(2, Math.round(13 * t.scale)), 1,
-                    android.util.TypedValue.COMPLEX_UNIT_SP);
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                tv.setAutoSizeTextTypeUniformWithConfiguration(Math.max(1, Math.round(9 * t.scale)), Math.max(2, Math.round(13 * t.scale)), 1,
+                        android.util.TypedValue.COMPLEX_UNIT_SP);
+            } else {
+                tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11);
+            }
             int pad = t.dp(LiquidTokens.LOGO_PAD_X_DP);
             tv.setPadding(pad, t.dp(5), pad, 0);
             inner.addView(tv, new LinearLayout.LayoutParams(MATCH, WRAP));

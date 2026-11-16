@@ -57,7 +57,7 @@ public final class GraphiteGlassRenderer {
     public static Backdrop prepareBackdrop(Bitmap source, int width, int height) {
         workerOnly();
         if (source == null || source.isRecycled() || source.isMutable()
-                || source.getConfig() == Bitmap.Config.HARDWARE) throw new IllegalArgumentException("immutable software bitmap required");
+                || (android.os.Build.VERSION.SDK_INT >= 26 && source.getConfig() == Bitmap.Config.HARDWARE)) throw new IllegalArgumentException("immutable software bitmap required");
         if (width < 2 || height < 2 || (long) width * height > MAX_BACKDROP_PIXELS) throw new IllegalArgumentException("backdrop exceeds pixel budget");
         Bitmap work = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(work); canvas.drawColor(Color.rgb(20, 23, 27));

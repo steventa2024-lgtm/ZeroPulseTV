@@ -45,7 +45,7 @@ public class GraphiteGlassSurface extends GraphiteGlassRenderer.CachedView {
         setClickable(false);
         setFocusableInTouchMode(false);
         setLongClickable(false);
-        setDefaultFocusHighlightEnabled(false);
+        if (android.os.Build.VERSION.SDK_INT >= 26) setDefaultFocusHighlightEnabled(false);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
         pending.setColor(0x6614181E);
         applyMaterial(designHeightPx);

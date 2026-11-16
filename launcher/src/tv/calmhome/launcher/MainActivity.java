@@ -939,7 +939,7 @@ public class MainActivity extends Activity implements Panel.Host {
             lp.leftMargin = theme.dp(Theme.GAP);
             dock.addView(tile, lp);
         }
-        Widgets.cardOf(dock.getChildAt(0)).setFocusedByDefault(true);
+        if (android.os.Build.VERSION.SDK_INT >= 26) Widgets.cardOf(dock.getChildAt(0)).setFocusedByDefault(true);
         // Left/Right stop at the ends of the dock (otherwise Right on the last app jumped to the Settings chip).
         List<View> cards = new ArrayList<>();
         for (int i = 0; i < dock.getChildCount(); i++) cards.add(Widgets.cardOf(dock.getChildAt(i)));

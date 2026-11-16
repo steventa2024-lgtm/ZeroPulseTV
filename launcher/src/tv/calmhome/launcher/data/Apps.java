@@ -51,6 +51,7 @@ public final class Apps {
     public void invalidate(String pkg) { labelCache.remove(pkg); }
 
     public int category(String pkg) {
+        if (android.os.Build.VERSION.SDK_INT < 26) return -1;
         try { return pm.getApplicationInfo(pkg, 0).category; }
         catch (PackageManager.NameNotFoundException e) { return ApplicationInfo.CATEGORY_UNDEFINED; }
     }

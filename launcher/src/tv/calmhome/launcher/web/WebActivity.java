@@ -299,8 +299,10 @@ public class WebActivity extends ModuleActivity {
     @SuppressLint("SetJavaScriptEnabled")
     @SuppressWarnings("deprecation")
     private boolean createWebView() {
-        PackageInfo provider = WebView.getCurrentWebViewPackage();
-        if (provider == null) return false;
+        if (android.os.Build.VERSION.SDK_INT >= 26) {
+            PackageInfo provider = WebView.getCurrentWebViewPackage();
+            if (provider == null) return false;
+        }
         try {
             web = new WebView(this);
         } catch (RuntimeException missingOrBroken) {
@@ -315,7 +317,7 @@ public class WebActivity extends ModuleActivity {
         s.setAllowFileAccessFromFileURLs(false);
         s.setAllowUniversalAccessFromFileURLs(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        s.setSafeBrowsingEnabled(true);
+        if (android.os.Build.VERSION.SDK_INT >= 26) s.setSafeBrowsingEnabled(true);
         s.setGeolocationEnabled(false);
         s.setSupportMultipleWindows(false);                 // target=_blank opens in this tab
         s.setJavaScriptCanOpenWindowsAutomatically(false);
@@ -397,8 +399,9 @@ public class WebActivity extends ModuleActivity {
             page.removeView(view);
             view.destroy();
             web = null;
+            boolean crashed = android.os.Build.VERSION.SDK_INT >= 26 && detail != null && detail.didCrash();
             showState(Glyph.Kind.INFO, Theme.ERROR, "The page stopped working",
-                    "The web page " + (detail.didCrash() ? "crashed" : "was closed to free memory")
+                    "The web page " + (crashed ? "crashed" : "was closed to free memory")
                             + ". Close this browser and open it again to continue.");
             return true;
         }

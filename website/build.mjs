@@ -9,6 +9,7 @@ const out = join(here, 'dist');
 const release = JSON.parse(await readFile(join(here, 'release.json'), 'utf8'));
 if (!/^[a-f0-9]{64}$/.test(release.sha256) || !/^[a-f0-9]{64}$/.test(release.certificate)) throw new Error('Invalid release fingerprints');
 if (release.apk !== `${release.repo}/releases/download/${release.tag}/${release.filename}`) throw new Error('APK URL mismatch');
+if (!/^\d{5,9}$/.test(String(release.downloaderCode || '')) || release.downloaderShortUrl !== `https://aftv.news/${release.downloaderCode}` || !/^\d{5,9}$/.test(String(release.releasePageDownloaderCode || ''))) throw new Error('Invalid Downloader shortcode metadata');
 await rm(out, { recursive: true, force: true });
 await mkdir(join(out, 'assets', 'screenshots'), { recursive: true });
 function gitBlobHash(bytes) {
@@ -30,6 +31,9 @@ const vars = {
   APK: release.apk, REPO: release.repo, INSTALL: release.install,
   PROMPT: release.prompt, FILENAME: release.filename, NOTES: release.notes,
   CHECKSUMS: release.checksums, SHA256: release.sha256, CERTIFICATE: release.certificate,
+  DOWNLOADER_CODE: release.downloaderCode,
+  DOWNLOADER_SHORT_URL: release.downloaderShortUrl,
+  RELEASE_PAGE_DOWNLOADER_CODE: release.releasePageDownloaderCode,
 };
 let html = await readFile(join(here, 'index.html'), 'utf8');
 html = html.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => {

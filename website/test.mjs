@@ -5,11 +5,16 @@ const html = await readFile(new URL('./index.html', import.meta.url), 'utf8');
 const css = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
 const js = await readFile(new URL('./app.js', import.meta.url), 'utf8');
 const config = JSON.parse(await readFile(new URL('./release.json', import.meta.url), 'utf8'));
-test('release pins exact version-specific public APK', () => {
+test('release pins exact version-specific public APK and Downloader shortcode', () => {
  assert.equal(config.apk, 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk');
  assert.equal(config.bytes, 9894706);
  assert.equal(config.sha256, 'c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7');
  assert.equal(config.certificate, '0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd');
+ assert.equal(config.downloaderCode, '7261699');
+ assert.equal(config.downloaderShortUrl, 'https://aftv.news/7261699');
+ assert.equal(config.releasePageDownloaderCode, '1275775');
+ assert.ok(html.includes('{{DOWNLOADER_CODE}}') && html.includes('data-copy="{{DOWNLOADER_CODE}}"'));
+ assert.ok(html.includes('{{DOWNLOADER_SHORT_URL}}') && html.includes('{{RELEASE_PAGE_DOWNLOADER_CODE}}'));
 });
 test('all download CTA hrefs share the authoritative template', () => {
  const links = [...html.matchAll(/<a[^>]*class="[^"]*apk-link[^"]*"[^>]*href="([^"]+)"/g)];
@@ -81,10 +86,10 @@ test('TV step covers developer options, unknown apps and no port forwarding', ()
  const tv = html.slice(html.indexOf('data-step="0"'), html.indexOf('data-step="1"'));
  assert.ok(tv.includes('seven times') && tv.includes('Install unknown apps') && tv.includes('Never expose ADB through router port forwarding'));
 });
-test('Downloader and Wireless ADB steps cover shortcode, install -r and appops', () => {
+test('Downloader and Wireless ADB steps cover shortcode 7261699, install -r and appops', () => {
  const dl = html.slice(html.indexOf('data-step="1"'), html.indexOf('data-step="2"'));
  const adb = html.slice(html.indexOf('data-step="2"'), html.indexOf('wizard-bottom'));
- assert.ok(dl.includes('shortcode') && dl.includes('Home launcher') && dl.includes('Manual installation guide'));
+ assert.ok(dl.includes('Downloader by AFTVnews') && dl.includes('{{DOWNLOADER_CODE}}') && dl.includes('aftv.news/{{DOWNLOADER_CODE}}') && dl.includes('{{RELEASE_PAGE_DOWNLOADER_CODE}}') && dl.includes('Home launcher'));
  assert.ok(adb.includes('This website never connects to your TV') && adb.includes('5555') && adb.includes('adb install -r {{FILENAME}}') && adb.includes('appops set tv.calmhome.launcher REQUEST_INSTALL_PACKAGES allow'));
 });
 test('dialogs return focus to their opener', () => {

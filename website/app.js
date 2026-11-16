@@ -75,7 +75,7 @@ let noticeTimer;
 $$('.copy-value').forEach(button => button.addEventListener('click', async () => {
   const status = $('#notification');
   const copied = await copyText(button.dataset.copy, status);
-  if (copied) status.textContent = 'Verification fingerprint copied.';
+  if (copied) status.textContent = button.textContent.includes('Code') ? `Downloader shortcode ${button.dataset.copy} copied.` : 'Verification fingerprint copied.';
   clearTimeout(noticeTimer);
   noticeTimer = setTimeout(() => { status.textContent = ''; }, 4000);
 }));

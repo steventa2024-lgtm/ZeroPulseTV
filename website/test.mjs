@@ -96,3 +96,10 @@ test('dialogs return focus to their opener', () => {
  assert.ok(js.includes('function openDialog') && js.includes("addEventListener('close'") && js.includes('returnTarget'));
  assert.ok(!/\.showModal\(\)/.test(js.replace('dialog.showModal();\n}', '')));
 });
+test('install section embeds responsive muted loop tutorial video under 15 MB', async () => {
+ const install = html.slice(html.indexOf('id="install"'), html.indexOf('class="setup-layout"'));
+ assert.ok(install.includes('<video controls playsinline muted loop'));
+ assert.ok(install.includes('assets/zeropulse-install-tutorial.mp4'));
+ const mp4 = await readFile(new URL('./assets/zeropulse-install-tutorial.mp4', import.meta.url));
+ assert.ok(mp4.byteLength > 100_000 && mp4.byteLength < 15 * 1024 * 1024);
+});

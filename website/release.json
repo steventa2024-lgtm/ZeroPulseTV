@@ -15,12 +15,12 @@
   "bytes": 9894706,
   "filename": "ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk",
   "screenshots": {
-    "01-home.png": "9765eb07f8428099131a34438106b5a357101bb7",
-    "02-all-apps.png": "44719e8b9e452dad522c7149e902c0d4b15260d3",
-    "03-inputs.png": "04dc5f2eafeb2f85d78792a2be76217ee4004a8a",
-    "04-wallpapers.png": "f1345806f24ab3f424369d8bfe27ec478cb148b8",
-    "05-settings.png": "7cc5c5fbbe55ed518efa733dd0cf4b83446b1256",
-    "06-about.png": "c91513623a8d0cbe32dba033df8152ad82a4186d",
-    "07-assistant-local-mode.png": "e77c282fb415d2021c26889dd7b5c2683e3d083e"
+    "01-home.png": "a5180918905d9e1b97a53f4c188ac6de98f50ece",
+    "02-zpapps-discover.png": "260d334258c1cea158a88e905e335d08a833458f",
+    "03-zpapps-toolbox.png": "9d055f93d2cd3c3ecc39e3668f568805fd5f558f",
+    "04-zpapps-downloader.png": "bd664d4c652d10bad8f9bd6515c429c31abca284",
+    "05-all-apps.png": "7125ae3a8e2e91f3f3d3a063f3aa1e5893db8b55",
+    "06-wallpapers.png": "0d2238bb6e5b3e11b30a72f28dd245327122b340",
+    "07-settings.png": "f8ba7cec270cb574e21d466cbaebcec3877cc1f7"
   }
 }

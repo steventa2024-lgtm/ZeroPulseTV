@@ -82,9 +82,9 @@ After maintenance, disable debugging on the TV. `adb disconnect` alone does not 
 ## A look around
 
 <table>
-<tr><td width="50%"><img src="docs/screenshots/02-all-apps.png" alt="Real All Apps screen"><br><strong>All Apps</strong> — your installed TV apps.</td><td width="50%"><img src="docs/screenshots/03-inputs.png" alt="Real Inputs screen"><br><strong>Inputs</strong> — options reported by your device.</td></tr>
-<tr><td><img src="docs/screenshots/04-wallpapers.png" alt="Real Wallpapers screen"><br><strong>Wallpapers</strong> — choose your scene and rotation.</td><td><img src="docs/screenshots/05-settings.png" alt="Real launcher Settings screen"><br><strong>Settings</strong> — appearance and launcher preferences.</td></tr>
-<tr><td><img src="docs/screenshots/06-about.png" alt="Real About and credits screen"><br><strong>About</strong> — version information and credits.</td><td></td></tr>
+<tr><td width="50%"><img src="docs/screenshots/02-zpapps-discover.png" alt="ZPAPPS Discover Shelves and Spotlight Hero"><br><strong>ZPAPPS Discover</strong> — curated TV shelves and Spotlight hero banner.</td><td width="50%"><img src="docs/screenshots/03-zpapps-toolbox.png" alt="ZPAPPS All 20 Apps Grid and Telemetry Bar"><br><strong>ZPAPPS 20-App Grid</strong> — category filters and live storage telemetry.</td></tr>
+<tr><td><img src="docs/screenshots/04-zpapps-downloader.png" alt="Custom Downloader 3x4 Shortcode Keypad"><br><strong>Shortcode Keypad</strong> — D-pad 3×4 Downloader code keypad.</td><td><img src="docs/screenshots/05-all-apps.png" alt="Real All Apps screen"><br><strong>All Apps</strong> — installed TV apps with ZPAPPS filter pill.</td></tr>
+<tr><td><img src="docs/screenshots/06-wallpapers.png" alt="Real Wallpapers screen"><br><strong>Wallpapers</strong> — Liquid Glass scenes, dimming and framing controls.</td><td><img src="docs/screenshots/07-settings.png" alt="Real launcher Settings screen"><br><strong>Settings</strong> — appearance and launcher preferences.</td></tr>
 </table>
 
 These are existing captures from the real TCL, not a compatibility demonstration for other models. Photo credits remain visible; see [third-party notices](THIRD_PARTY_NOTICES.md) for wallpaper attribution and licensing.

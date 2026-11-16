@@ -9,7 +9,7 @@ import android.content.Intent;
  * originating from {@link ToolboxEngine}.
  */
 public final class ToolboxInstallReceiver extends BroadcastReceiver {
-    public static final String ACTION_INSTALL_RESULT = "tv.calmhome.launcher.toolbox.INSTALL_RESULT";
+    public static final String ACTION_INSTALL_RESULT = tv.calmhome.launcher.BuildConfig.APPLICATION_ID + ".toolbox.INSTALL_RESULT";
 
     @Override
     public void onReceive(Context context, Intent intent) {

@@ -175,8 +175,13 @@ public class MainActivity extends Activity implements Panel.Host {
         buildHome();
         setContentView(root);
         if (theme.liquid) theme.kit.setAnchor(root);               // the glass clock and navigation measure from the screen
-        buildDock();
-        buildAllAppsCarousel();
+        if (BuildConfig.STANDALONE_ZPAPPS) {
+            mainUi.setVisibility(View.GONE);
+            mainUi.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        } else {
+            buildDock();
+            buildAllAppsCarousel();
+        }
         sounds = new tv.calmhome.launcher.data.UiSounds(this, prefs);
         downloadWatcher = new DownloadWatcher(this, new DownloadWatcher.Listener() {
             @Override public void onSummary(DownloadSummary s) { onDownloads(s); }
@@ -193,9 +198,13 @@ public class MainActivity extends Activity implements Panel.Host {
                 }
             });
         }
-        root.post(() -> { if (panels.isEmpty()) focusFirstDockTile(); });
+        if (!BuildConfig.STANDALONE_ZPAPPS) {
+            root.post(() -> { if (panels.isEmpty()) focusFirstDockTile(); });
+        }
         root.getViewTreeObserver().addOnGlobalFocusChangeListener((was, now) -> {
-            updateShelfHint(now);
+            if (!BuildConfig.STANDALONE_ZPAPPS) {
+                updateShelfHint(now);
+            }
             updateParallax(now);
             if (was != null && now != null && panels.isEmpty()) sounds.play(tv.calmhome.launcher.data.UiSounds.Kind.FOCUS);
         });
@@ -207,9 +216,11 @@ public class MainActivity extends Activity implements Panel.Host {
                     art.invalidate(i.getData().getSchemeSpecificPart());           // an updated app may ship new artwork
                 }
                 w.clearLogoCache();
-                buildDock();
-                buildAllAppsCarousel();
-                refreshRecents(true);
+                if (!BuildConfig.STANDALONE_ZPAPPS) {
+                    buildDock();
+                    buildAllAppsCarousel();
+                    refreshRecents(true);
+                }
                 for (Panel panel : panels) panel.onPackagesChanged();
             }
         };
@@ -222,6 +233,9 @@ public class MainActivity extends Activity implements Panel.Host {
 
         if (!handleOpenExtra(getIntent()) && state != null && state.getString("restoreSection") != null) {
             handleOpenExtra(new Intent().putExtra(EXTRA_OPEN, state.getString("restoreSection")));
+        }
+        if (BuildConfig.STANDALONE_ZPAPPS && panels.isEmpty()) {
+            open(new tv.calmhome.launcher.toolbox.ZpAppsPanel(this));
         }
     }
 
@@ -277,6 +291,11 @@ public class MainActivity extends Activity implements Panel.Host {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (handleOpenExtra(intent)) return;
+        if (BuildConfig.STANDALONE_ZPAPPS) {
+            while (panels.size() > 1) close(panels.get(panels.size() - 1));
+            if (panels.isEmpty()) open(new tv.calmhome.launcher.toolbox.ZpAppsPanel(this));
+            return;
+        }
         // Home pressed while already home: close everything and return to the first app.
         closeAll();
         closeAllAppsDrawer(false);
@@ -287,6 +306,15 @@ public class MainActivity extends Activity implements Panel.Host {
     @SuppressWarnings("deprecation")
     @Override
     public void onBackPressed() {
+        if (BuildConfig.STANDALONE_ZPAPPS) {
+            if (panels.isEmpty()) { finish(); return; }
+            Panel top = panels.get(panels.size() - 1);
+            if (top.onBack()) return;
+            if (panels.size() > 1) close(top);
+            else if (!(top instanceof tv.calmhome.launcher.toolbox.ZpAppsPanel)) navigate("Toolbox");
+            else finish();
+            return;
+        }
         // Android 12 (this TV) still routes Back here; Home itself ignores Back (except closing an open bottom carousel).
         if (panels.isEmpty()) {
             if (drawerOpen) closeAllAppsDrawer(true);
@@ -1615,13 +1643,19 @@ public class MainActivity extends Activity implements Panel.Host {
         switch (tab) {
             case "Apps": switchTo(new AppsPanel(this)); break;
             case "Downloads": switchTo(new DownloadsPanel(this)); break;
+            case "Toolbox":
             case "ZPAPPS": switchTo(new tv.calmhome.launcher.toolbox.ZpAppsPanel(this)); break;
+            case "Wallpapers": switchTo(new WallpapersPanel(this)); break;
             case "Inputs": switchTo(new InputsPanel(this)); break;
             case "Settings": switchTo(new SettingsPanel(this, null)); break;
             // "Home", and any other name (the removed Assistant, a stale saved destination): Home, never a crash or an empty screen.
             default:
-                closeAll();
-                focusFirstDockTile();
+                if (BuildConfig.STANDALONE_ZPAPPS) {
+                    switchTo(new tv.calmhome.launcher.toolbox.ZpAppsPanel(this));
+                } else {
+                    closeAll();
+                    focusFirstDockTile();
+                }
                 break;
         }
     }

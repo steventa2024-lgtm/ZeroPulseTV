@@ -87,36 +87,54 @@ public class HomeRemoteTest {
         assertEquals(MockTvApps.DEFAULTS[0][0], tag(home));
     }
 
-    @Test public void downReachesTheQuickActionsWhichWalkLeftAndRightInOrder() throws Exception {
+    @Test public void downOpensTheVerticalAllAppsCarouselWhichScrollsDownAndUpInOrder() throws Exception {
         MainActivity home = home();
-        assertTrue(HomeTestSupport.dpad(home, DOWN));
-        assertTrue("Down from the tiles lands on a quick action", HomeTestSupport.focus(home) instanceof ZeroPulseGlassQuickAction);
-        // From the first tile the nearest action below is the first one.
-        assertEquals(ACTIONS[0], actionLabel(home));
-        for (int i = 1; i < ACTIONS.length; i++) {
-            assertTrue(HomeTestSupport.dpad(home, RIGHT));
-            assertEquals(ACTIONS[i], actionLabel(home));
+        assertTrue("duplicate quick-action pills removed", HomeTestSupport.glassActions(home).isEmpty());
+        HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_DOWN);
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertTrue("Down from the tiles transitions into the vertical All Apps carousel", home.isAllAppsDrawerOpen());
+        assertEquals(View.VISIBLE, home.allAppsDrawer().getVisibility());
+        assertEquals(1f, home.allAppsDrawer().getAlpha(), 0.01f);
+        assertEquals(0f, home.allAppsDrawer().getTranslationY(), 0.5f);
+        assertEquals("zpapps", tag(home));
+        for (tv.calmhome.launcher.ui.GraphiteGlassSurface s : HomeTestSupport.surfaces(home)) {
+            assertEquals("glass primitives must never scaleX when carousel opens", 1f, s.getScaleX(), 0f);
+            assertEquals("glass primitives must never scaleY when carousel opens", 1f, s.getScaleY(), 0f);
         }
-        assertFalse("Right at the last action goes nowhere", HomeTestSupport.dpad(home, RIGHT));
-        assertEquals(ACTIONS[ACTIONS.length - 1], actionLabel(home));
-        for (int i = ACTIONS.length - 2; i >= 0; i--) {
-            assertTrue(HomeTestSupport.dpad(home, LEFT));
-            assertEquals(ACTIONS[i], actionLabel(home));
+
+        List<View> rows = HomeTestSupport.carouselRows(home);
+        assertEquals(8, rows.size());
+        assertFalse("Left never escapes vertical carousel", HomeTestSupport.dpad(home, LEFT));
+        assertFalse("Right never escapes vertical carousel", HomeTestSupport.dpad(home, RIGHT));
+        for (int i = 1; i < rows.size(); i++) {
+            assertTrue("Down to carousel item " + i, HomeTestSupport.dpad(home, DOWN));
+            assertSame(rows.get(i), HomeTestSupport.focus(home));
+        }
+        assertFalse("Down at the last carousel item goes nowhere", HomeTestSupport.dpad(home, DOWN));
+        assertSame(rows.get(rows.size() - 1), HomeTestSupport.focus(home));
+        for (int i = rows.size() - 2; i >= 0; i--) {
+            assertTrue(HomeTestSupport.dpad(home, UP));
+            assertSame(rows.get(i), HomeTestSupport.focus(home));
         }
     }
 
-    @Test public void upFromAnActionReturnsToATileAndUpFromTheTilesGoesIntoTheNavigation() throws Exception {
+    @Test public void upFromTheCarouselReturnsToTheTilesAndUpFromTheTilesGoesIntoTheNavigation() throws Exception {
         MainActivity home = home();
-        assertTrue(HomeTestSupport.dpad(home, DOWN));
-        assertTrue(HomeTestSupport.dpad(home, UP));
-        assertTrue("back on a tile", HomeTestSupport.focus(home) instanceof ZeroPulseGlassAppTile);
+        HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_DOWN);
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertTrue(home.isAllAppsDrawerOpen());
+        HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_UP);
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertFalse("Up slides the carousel closed", home.isAllAppsDrawerOpen());
+        assertEquals(View.INVISIBLE, home.allAppsDrawer().getVisibility());
+        assertTrue("back on a dock tile", HomeTestSupport.focus(home) instanceof ZeroPulseGlassAppTile);
         assertTrue("Up from the tiles reaches the navigation", HomeTestSupport.dpad(home, UP));
         assertTrue(inNav(home));
         assertTrue("Down from the navigation returns to the tiles", HomeTestSupport.dpad(home, DOWN));
         assertTrue(HomeTestSupport.focus(home) instanceof ZeroPulseGlassAppTile);
     }
 
-    @Test public void okOnATileLaunchesItsAppAndOkOnAnActionOpensItsScreen() throws Exception {
+    @Test public void okOnATileLaunchesItsAppAndOkOnCarouselZpAppsOpensToolbox() throws Exception {
         MainActivity home = home();
         assertTrue(HomeTestSupport.dpad(home, RIGHT));
         HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_CENTER);
@@ -124,29 +142,39 @@ public class HomeRemoteTest {
         assertNotNull("OK launched the focused app", started);
         assertEquals(MockTvApps.DEFAULTS[1][0], started.getComponent().getPackageName());
 
-        // Four actions share the row, so the one below the second tile is the first action, All Apps.
-        assertTrue(HomeTestSupport.dpad(home, DOWN));
-        assertEquals(ACTIONS[0], actionLabel(home));
+        HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_DOWN);
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertEquals("zpapps", tag(home));
         ViewGroup content = (ViewGroup) home.findViewById(android.R.id.content);
         int before = ((ViewGroup) content.getChildAt(0)).getChildCount();
         HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_CENTER);
-        assertTrue("OK on All Apps opened the apps screen", ((ViewGroup) content.getChildAt(0)).getChildCount() > before);
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertTrue("OK on ZPAPPS Toolbox opened the toolbox panel", ((ViewGroup) content.getChildAt(0)).getChildCount() > before);
     }
 
-    @Test public void backClosesAScreenAndFocusReturnsToTheQuickActionThatOpenedIt() throws Exception {
+    @Test public void backClosesPanelThenCarouselAndNeverExitsHome() throws Exception {
+        tv.calmhome.launcher.toolbox.ToolboxEngine.get(HomeTestSupport.app()).setOnboardingCompleted(true);
         MainActivity home = home();
-        assertTrue(HomeTestSupport.dpad(home, DOWN));
-        View opener = HomeTestSupport.focus(home);
-        assertEquals(ACTIONS[0], actionLabel(home));
+        View openerDock = HomeTestSupport.focus(home);
+        HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_DOWN);
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        View openerCarousel = HomeTestSupport.focus(home);
+        assertEquals("zpapps", tag(home));
         ViewGroup content = (ViewGroup) home.findViewById(android.R.id.content);
         int before = ((ViewGroup) content.getChildAt(0)).getChildCount();
         HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_CENTER);
-        ShadowLooper.idleMainLooper();
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
         assertTrue(((ViewGroup) content.getChildAt(0)).getChildCount() > before);
         home.onBackPressed();
-        ShadowLooper.idleMainLooper();
-        assertEquals("the screen is closed", before, ((ViewGroup) content.getChildAt(0)).getChildCount());
-        assertSame("and focus is back on the button that opened it", opener, HomeTestSupport.focus(home));
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertEquals("the panel is closed", before, ((ViewGroup) content.getChildAt(0)).getChildCount());
+        assertTrue("carousel remains open behind the panel", home.isAllAppsDrawerOpen());
+        assertSame("and focus is back on the ZPAPPS carousel tile", openerCarousel, HomeTestSupport.focus(home));
+
+        home.onBackPressed();
+        ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+        assertFalse("second Back slides the carousel closed", home.isAllAppsDrawerOpen());
+        assertSame("and restores focus to the originating dock tile", openerDock, HomeTestSupport.focus(home));
         assertFalse("Back on Home itself does nothing", home.isFinishing());
         home.onBackPressed();
         assertFalse(home.isFinishing());

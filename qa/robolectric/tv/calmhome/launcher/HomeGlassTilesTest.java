@@ -72,27 +72,28 @@ public class HomeGlassTilesTest {
 
     // ------------------------------------------------------------------ shared renderer
 
-    @Test public void allSevenTilesAndFourActionsAreGlassFromTheSharedRenderer() throws Exception {
+    @Test public void allSevenTilesAndPeekHandleAreGlassFromTheSharedRenderer() throws Exception {
         MainActivity home = glassHome();
         List<ZeroPulseGlassAppTile> tiles = HomeTestSupport.glassTiles(home);
         List<ZeroPulseGlassQuickAction> actions = HomeTestSupport.glassActions(home);
         assertEquals(7, tiles.size());
-        assertEquals(4, actions.size());
+        assertEquals(0, actions.size());
         List<GraphiteGlassSurface> surfaces = HomeTestSupport.surfaces(home);
-        assertEquals(11, surfaces.size());
+        assertEquals("7 dock tiles + 1 slim peek handle", 8, surfaces.size());
         for (GraphiteGlassSurface s : surfaces) {
             assertTrue("every surface is the supplied renderer's CachedView", s instanceof GraphiteGlassRenderer.CachedView);
             assertTrue(s instanceof ZeroPulseGlassTileBackground);
+            assertEquals("glass primitives must never scaleX", 1f, s.getScaleX(), 0f);
+            assertEquals("glass primitives must never scaleY", 1f, s.getScaleY(), 0f);
         }
         for (ZeroPulseGlassAppTile t : tiles) assertEquals(GraphiteGlassSurface.Shape.CARD, t.glass().shape());
-        for (ZeroPulseGlassQuickAction a : actions) assertEquals(GraphiteGlassSurface.Shape.CAPSULE, a.glass().shape());
-        assertEquals("they all registered with the one engine", 11, home.theme().kit.surfaceCount());
-        assertFalse("no tile or action is drawn by the old painter", anyOldPainter(home.getWindow().getDecorView().findViewById(android.R.id.content)));
+        assertEquals("they all registered with the one engine", 8, home.theme().kit.surfaceCount());
+        assertFalse("no tile or handle is drawn by the old painter", anyOldPainter(home.getWindow().getDecorView().findViewById(android.R.id.content)));
 
-        assertTrue("the scene is prepared and all 11 render", HomeTestSupport.pumpUntil(home, () -> allRendered(home), 150));
-        assertEquals(11, home.theme().kit.renderedSurfaceCount());
-        assertEquals("two frost copies: one for the tiles' size, one for the actions'", 2, home.theme().kit.surfaceVariantCount());
-        assertTrue(home.theme().kit.diagnostics().contains("11 tiles and actions (11 rendered)"));
+        assertTrue("the scene is prepared and all 8 render", HomeTestSupport.pumpUntil(home, () -> allRendered(home), 150));
+        assertEquals(8, home.theme().kit.renderedSurfaceCount());
+        assertEquals("two frost copies: one for the tiles' size, one for the peek handle", 2, home.theme().kit.surfaceVariantCount());
+        assertTrue(home.theme().kit.diagnostics().contains("8 tiles and actions (8 rendered)"));
     }
 
     @Test public void theMaterialScalesWithEachSurfaceUsingTheApprovedFormulas() throws Exception {
@@ -105,11 +106,14 @@ public class HomeGlassTilesTest {
             assertEquals(GlassMaterial.bevel(h), t.glass().bevel(), 1e-3f);
         }
         ZeroPulseGlassAppTile tile = HomeTestSupport.glassTiles(home).get(0);
-        ZeroPulseGlassQuickAction action = HomeTestSupport.glassActions(home).get(0);
         assertTrue("a Home tile at 1080p is about 139 px tall (222 px wide at 16:10, was 125 at 16:9): " + tile.glass().getHeight(),
                 Math.abs(tile.glass().getHeight() - 139) <= 2);
-        assertEquals("a quick action is 36 dp = 72 px, slimmer than the old 84 px capsule", 72, action.glass().getHeight());
-        assertTrue("the actions' material is finer than the tiles'", action.glass().unit() < tile.glass().unit());
+        GraphiteGlassSurface peekSurface = null;
+        for (GraphiteGlassSurface s : HomeTestSupport.surfaces(home)) {
+            if (s.shape() == GraphiteGlassSurface.Shape.CAPSULE) { peekSurface = s; break; }
+        }
+        assertNotNull("slim glass peek handle is present", peekSurface);
+        assertTrue("the slim peek handle's material is finer than the tiles'", peekSurface.unit() < tile.glass().unit());
     }
 
     @Test public void oneRowOfSevenTilesFitsInsideTheSafeMargins() throws Exception {
@@ -177,22 +181,20 @@ public class HomeGlassTilesTest {
         MainActivity home = glassHome();
         assertTrue(HomeTestSupport.pumpUntil(home, () -> allRendered(home), 150));
         List<ZeroPulseGlassAppTile> tiles = HomeTestSupport.glassTiles(home);
-        List<ZeroPulseGlassQuickAction> actions = HomeTestSupport.glassActions(home);
         for (ZeroPulseGlassAppTile t : tiles) if (!t.isFocused()) assertEquals(0f, t.focusLevel(), 0f);
 
-        ZeroPulseGlassQuickAction second = actions.get(1);
+        ZeroPulseGlassAppTile second = tiles.get(1);
         assertTrue(second.requestFocus());
         ShadowLooper.idleMainLooper(400, java.util.concurrent.TimeUnit.MILLISECONDS);
-        assertEquals("the focused action has the focus material", 1f, second.focusLevel(), 0.01f);
-        for (ZeroPulseGlassQuickAction a : actions) if (a != second) assertEquals("the others stay quiet", 0f, a.focusLevel(), 0f);
-        for (ZeroPulseGlassAppTile t : tiles) assertEquals(0f, t.focusLevel(), 0f);
+        assertEquals("the focused tile has the focus material", 1f, second.focusLevel(), 0.01f);
+        for (ZeroPulseGlassAppTile t : tiles) if (t != second) assertEquals("the others stay quiet", 0f, t.focusLevel(), 0f);
 
         ZeroPulseGlassAppTile tile = tiles.get(3);
         Bitmap idle = HomeTestSupport.draw(tile.glass());
         tile.requestFocus();
         ShadowLooper.idleMainLooper(400, java.util.concurrent.TimeUnit.MILLISECONDS);
         assertEquals(1f, tile.focusLevel(), 0.01f);
-        assertEquals("focus moved: the action let go", 0f, second.focusLevel(), 0.01f);
+        assertEquals("focus moved: the previous tile let go", 0f, second.focusLevel(), 0.01f);
         Bitmap focused = HomeTestSupport.draw(tile.glass());
         assertTrue("the focus material is brighter than the idle glass: " + HomeTestSupport.meanBrightness(idle) + " -> " + HomeTestSupport.meanBrightness(focused),
                 HomeTestSupport.meanBrightness(focused) > HomeTestSupport.meanBrightness(idle) + 0.5);
@@ -255,11 +257,11 @@ public class HomeGlassTilesTest {
         for (GraphiteGlassSurface s : HomeTestSupport.surfaces(home)) assertTrue("the old glass stays until the new one is ready", s.hasMaterial());
 
         assertTrue("the new scene arrives", HomeTestSupport.pumpUntil(home, () -> kit.sceneCount() > scenes, 150));
-        assertTrue("and all twelve re-render", HomeTestSupport.pumpUntil(home, () -> {
+        assertTrue("and all eight re-render", HomeTestSupport.pumpUntil(home, () -> {
             Bitmap now = HomeTestSupport.draw(tile.glass());
             return HomeTestSupport.meanDifference(before, now) > 3.0;
         }, 150));
-        assertEquals(11, kit.renderedSurfaceCount());
+        assertEquals(8, kit.renderedSurfaceCount());
     }
 
     @Test public void twoWallpapersGiveTwoDifferentGlassesAtTheSamePlace() throws Exception {
@@ -307,10 +309,10 @@ public class HomeGlassTilesTest {
                 new android.content.Intent(HomeTestSupport.app(), MainActivity.class)).setup();
         MainActivity home = controller.get();
         GlassKit kit = home.theme().kit;
-        assertEquals(11, kit.surfaceCount());
+        assertEquals(8, kit.surfaceCount());
         MockTvApps.uninstall(MockTvApps.DEFAULTS[6][0]);
         MockTvApps.broadcast(android.content.Intent.ACTION_PACKAGE_REMOVED, MockTvApps.DEFAULTS[6][0]);
-        assertEquals("the removed app's tile left the engine", 10, kit.surfaceCount());
+        assertEquals("the removed app's tile left the engine", 7, kit.surfaceCount());
         controller.pause().stop().destroy();
         HomeTestSupport.pump(home, 3);                                  // a late result from the worker must not crash a dead Home
         assertFalse(new Prefs(HomeTestSupport.app()).liquidStarting());

@@ -24,6 +24,8 @@ public final class MotionTokens {
     public static final int HERO_FADE_MS = 260;
     /** A modal opens or closes (brief: 180 to 260 ms). */
     public static final int MODAL_MS = 220;
+    /** The hidden bottom All Apps carousel slides up into view or collapses down. */
+    public static final int DRAWER_SLIDE_MS = 220;
     /** The wallpaper drifts with focus (brief: 200 to 350 ms). */
     public static final int PARALLAX_MS = 300;
     /** A completion is acknowledged (brief: 300 to 600 ms). */

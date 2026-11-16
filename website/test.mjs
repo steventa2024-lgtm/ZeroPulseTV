@@ -7,8 +7,8 @@ const js = await readFile(new URL('./app.js', import.meta.url), 'utf8');
 const config = JSON.parse(await readFile(new URL('./release.json', import.meta.url), 'utf8'));
 test('release pins exact version-specific public APK and Downloader shortcode', () => {
  assert.equal(config.apk, 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk');
- assert.equal(config.bytes, 9894706);
- assert.equal(config.sha256, 'c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7');
+ assert.equal(config.bytes, 9903097);
+ assert.equal(config.sha256, '4affd78a2fc297956ab574bf16b8bfd6b7f3c5cbce8d408a4c090d96ffde5656');
  assert.equal(config.certificate, '0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd');
  assert.equal(config.downloaderCode, '7261699');
  assert.equal(config.downloaderShortUrl, 'https://aftv.news/7261699');

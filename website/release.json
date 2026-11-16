@@ -10,17 +10,17 @@
   "notes": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/v3.0.0-beta.8-zpapps",
   "install": "https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/INSTALL.md",
   "prompt": "https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/docs/claude-install-prompt.txt",
-  "sha256": "c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7",
+  "sha256": "4affd78a2fc297956ab574bf16b8bfd6b7f3c5cbce8d408a4c090d96ffde5656",
   "certificate": "0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd",
-  "bytes": 9894706,
+  "bytes": 9903097,
   "filename": "ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk",
   "screenshots": {
-    "01-home.png": "a5180918905d9e1b97a53f4c188ac6de98f50ece",
-    "02-zpapps-discover.png": "260d334258c1cea158a88e905e335d08a833458f",
+    "01-home.png": "497adae083bdfde41c95bb7484086d26a257c8ea",
+    "02-zpapps-discover.png": "65fc9d7589ed81a91e7a74bb2f9d493a292e22c4",
     "03-zpapps-toolbox.png": "9d055f93d2cd3c3ecc39e3668f568805fd5f558f",
     "04-zpapps-downloader.png": "bd664d4c652d10bad8f9bd6515c429c31abca284",
-    "05-all-apps.png": "7125ae3a8e2e91f3f3d3a063f3aa1e5893db8b55",
-    "06-wallpapers.png": "0d2238bb6e5b3e11b30a72f28dd245327122b340",
-    "07-settings.png": "f8ba7cec270cb574e21d466cbaebcec3877cc1f7"
+    "05-all-apps.png": "fdbb4e05cef26d9d82ffdb7697e233b6bd6ca817",
+    "06-wallpapers.png": "c766ed3dda6776a6153cb12ffd3539e964daf1d9",
+    "07-settings.png": "e54d11fa8557669885151e7961b87818aa0b7608"
   }
 }

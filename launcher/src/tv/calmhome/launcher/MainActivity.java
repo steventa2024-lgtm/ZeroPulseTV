@@ -117,11 +117,14 @@ public class MainActivity extends Activity implements Panel.Host {
     private boolean showingPhoto;
     private HomeShelf shelf = HomeShelf.compute(java.util.Collections.<String>emptyList(), java.util.Collections.<String>emptyList(),
             java.util.Collections.<String>emptyList(), java.util.Collections.<String>emptySet(), p -> false, 0);
-    private LinearLayout dock, greetingBox, bottomBlock;
+    private LinearLayout dock, greetingBox, bottomBlock, allAppsDrawer, allAppsRow;
     private Navigation navigation;
     private HorizontalScrollView dockScroll;
+    private android.widget.ScrollView allAppsScroll;
+    private android.animation.ObjectAnimator allAppsScrollAnim;
     private TextView greeting, credit;
-    private LinearLayout chipRow;
+    private boolean drawerOpen;
+    private View dockReturnFocus;
     private int tileW, tileH;
     private int tilePx, tileHpx, rowExtraPx;       // Liquid Glass: the tile row in whole pixels
     private final List<Panel> panels = new ArrayList<>();
@@ -173,6 +176,7 @@ public class MainActivity extends Activity implements Panel.Host {
         setContentView(root);
         if (theme.liquid) theme.kit.setAnchor(root);               // the glass clock and navigation measure from the screen
         buildDock();
+        buildAllAppsCarousel();
         sounds = new tv.calmhome.launcher.data.UiSounds(this, prefs);
         downloadWatcher = new DownloadWatcher(this, new DownloadWatcher.Listener() {
             @Override public void onSummary(DownloadSummary s) { onDownloads(s); }
@@ -204,6 +208,7 @@ public class MainActivity extends Activity implements Panel.Host {
                 }
                 w.clearLogoCache();
                 buildDock();
+                buildAllAppsCarousel();
                 refreshRecents(true);
                 for (Panel panel : panels) panel.onPackagesChanged();
             }
@@ -274,6 +279,7 @@ public class MainActivity extends Activity implements Panel.Host {
         if (handleOpenExtra(intent)) return;
         // Home pressed while already home: close everything and return to the first app.
         closeAll();
+        closeAllAppsDrawer(false);
         dockScroll.smoothScrollTo(0, 0);
         focusFirstDockTile();
     }
@@ -281,8 +287,11 @@ public class MainActivity extends Activity implements Panel.Host {
     @SuppressWarnings("deprecation")
     @Override
     public void onBackPressed() {
-        // Android 12 (this TV) still routes Back here; Home itself ignores Back.
-        if (panels.isEmpty()) return;
+        // Android 12 (this TV) still routes Back here; Home itself ignores Back (except closing an open bottom carousel).
+        if (panels.isEmpty()) {
+            if (drawerOpen) closeAllAppsDrawer(true);
+            return;
+        }
         Panel top = panels.get(panels.size() - 1);
         if (!top.onBack()) close(top);
     }
@@ -445,17 +454,9 @@ public class MainActivity extends Activity implements Panel.Host {
         dockScroll.addView(dock);
         bottom.addView(dockScroll, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
 
-        LinearLayout chips = new LinearLayout(this);
-        chipRow = chips;
-        chips.setClipChildren(false);
-        chips.setPadding(sx, 0, sx, 0);
-        addChip(chips, Glyph.Kind.GRID, "All Apps", false, v -> open(new AppsPanel(this)));
-        addChip(chips, Glyph.Kind.DOWNLOAD, "Downloads", false, v -> navigate("Downloads"));
-        addChip(chips, Glyph.Kind.IMAGE, "Wallpapers", false, v -> open(new WallpapersPanel(this)));
-        addChip(chips, Glyph.Kind.INPUTS, "Inputs", false, v -> navigate("Inputs"));
-        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(Widgets.MATCH, theme.dp(theme.liquid ? Widgets.QUICK_ACTION_DP : 42));
-        cl.topMargin = theme.dp(theme.liquid ? 10 : 8);
-        bottom.addView(chips, cl);
+        if (theme.liquid) {
+            bottom.addView(buildPeekHandle(), peekHandleParams());
+        }
 
         footer = new FrameLayout(this);
         footer.setPadding(sx, 0, sx, 0);
@@ -470,14 +471,94 @@ public class MainActivity extends Activity implements Panel.Host {
         if (theme.liquid) powered.setVisibility(View.GONE);          // the photo credit stays (the licences need it); the slogan goes
         footer.addView(powered, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
         LinearLayout.LayoutParams fl = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
-        fl.topMargin = theme.dp(14);
+        fl.topMargin = theme.dp(10);
         bottom.addView(footer, fl);
 
         FrameLayout.LayoutParams bl = new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP, Gravity.BOTTOM);
-        bl.bottomMargin = theme.liquid ? sy + theme.dp(6) : sy;           // the quick actions sit comfortably inside the TV-safe margin
+        bl.bottomMargin = sy;
         mainUi.addView(bottom, bl);
 
+        buildAllAppsDrawer(sx, sy);
+
         applyHomePrefs();
+    }
+
+    private LinearLayout.LayoutParams peekHandleParams() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP);
+        lp.gravity = Gravity.CENTER_HORIZONTAL;
+        lp.topMargin = theme.dp(14);
+        lp.bottomMargin = theme.dp(16);
+        return lp;
+    }
+
+    /** Subtle, ultra-slim non-focusable glass handle at the bottom edge hinting at the All Apps & ZPAPPS drawer below. */
+    private View buildPeekHandle() {
+        final tv.calmhome.launcher.ui.ZeroPulseGlassTileBackground bg = new tv.calmhome.launcher.ui.ZeroPulseGlassTileBackground(
+                this, theme.kit, tv.calmhome.launcher.ui.GraphiteGlassSurface.Shape.CAPSULE, theme.dp(Widgets.QUICK_ACTION_DP));
+        bg.pinMaterialHeight(theme.dp(Widgets.QUICK_ACTION_DP));
+        bg.setPresence(0.65f);
+        FrameLayout handle = new FrameLayout(this) {
+            @Override
+            protected void onMeasure(int widthSpec, int heightSpec) {
+                super.onMeasure(widthSpec, heightSpec);
+                bg.measure(
+                        MeasureSpec.makeMeasureSpec(Math.max(1, getMeasuredWidth()), MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(Math.max(1, getMeasuredHeight()), MeasureSpec.EXACTLY));
+            }
+        };
+        handle.setFocusable(false);
+        handle.setClickable(false);
+        handle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        handle.addView(bg, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+        TextView cue = theme.text(this, Theme.T_CAPTION, Theme.withAlpha(Theme.SOFT_WHITE, 0.80f), Theme.FONT_MEDIUM);
+        cue.setText("⌄  All Apps & ZPAPPS");
+        cue.setSingleLine(true);
+        cue.setPadding(theme.dp(14), theme.dp(3), theme.dp(14), theme.dp(4));
+        handle.addView(cue, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.CENTER));
+        return handle;
+    }
+
+    private void buildAllAppsDrawer(int sx, int sy) {
+        allAppsDrawer = new LinearLayout(this);
+        allAppsDrawer.setOrientation(LinearLayout.VERTICAL);
+        allAppsDrawer.setClipChildren(false);
+        allAppsDrawer.setClipToPadding(false);
+        allAppsDrawer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        allAppsDrawer.setVisibility(View.INVISIBLE);
+        allAppsDrawer.setAlpha(0f);
+        allAppsDrawer.setTranslationY(offscreenDrawerY());
+        allAppsDrawer.setPadding(sx, 0, sx, 0);
+
+        FrameLayout header = new FrameLayout(this);
+        header.setPadding(0, 0, 0, theme.dp(10));
+        TextView title = theme.text(this, Theme.T_LABEL, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        title.setText("All Apps & ZPAPPS");
+        header.addView(title, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.START | Gravity.CENTER_VERTICAL));
+        TextView hint = theme.text(this, Theme.T_CAPTION, Theme.withAlpha(Theme.SOFT_WHITE, 0.72f), Theme.FONT_REGULAR);
+        hint.setText("↓↑ Scroll carousel  ·  OK opens  ·  ↑ at top or Back returns Home");
+        header.addView(hint, new FrameLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP, Gravity.END | Gravity.CENTER_VERTICAL));
+        allAppsDrawer.addView(header, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
+
+        android.widget.ScrollView scroller = new android.widget.ScrollView(this);
+        scroller.setVerticalScrollBarEnabled(false);
+        scroller.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroller.setClipChildren(false);
+        scroller.setClipToPadding(false);
+        allAppsScroll = scroller;
+
+        allAppsRow = new LinearLayout(this);
+        allAppsRow.setOrientation(LinearLayout.VERTICAL);
+        allAppsRow.setClipChildren(false);
+        allAppsRow.setClipToPadding(false);
+        allAppsRow.setPadding(0, theme.dp(16), 0, theme.dp(120));
+        int carouselW = Math.min(theme.screenW() - 2 * sx, theme.dp(720));
+        android.widget.FrameLayout.LayoutParams rowLp = new android.widget.FrameLayout.LayoutParams(carouselW, Widgets.WRAP, Gravity.CENTER_HORIZONTAL);
+        allAppsScroll.addView(allAppsRow, rowLp);
+        allAppsDrawer.addView(allAppsScroll, new LinearLayout.LayoutParams(Widgets.MATCH, 0, 1f));
+
+        FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH);
+        dlp.setMargins(0, theme.dp(92) + sy, 0, sy);
+        mainUi.addView(allAppsDrawer, dlp);
     }
 
     private TextView shelfLabel(String label, int sx) {
@@ -539,14 +620,6 @@ public class MainActivity extends Activity implements Panel.Host {
         applyCredit();
         stage.setFrosted(photo && base != null);
         if (photo && started) stage.start(); else stage.stop();
-    }
-
-    private View addChip(LinearLayout row, Glyph.Kind icon, String text, boolean accent, View.OnClickListener click) {
-        View chip = theme.liquid ? w.quickAction(icon, text, click) : w.chip(icon, text, accent, click);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Widgets.MATCH, 1f);
-        if (row.getChildCount() > 0) lp.leftMargin = theme.dp(Theme.GAP);
-        row.addView(chip, lp);
-        return chip;
     }
 
     private FramedImageView wallpaperView() {
@@ -648,6 +721,17 @@ public class MainActivity extends Activity implements Panel.Host {
                     default: k = tv.calmhome.launcher.core.KonamiDetector.Key.OTHER; break;
                 }
                 if (konami.press(k, e.getEventTime())) secretFound();
+                if (e.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_DOWN && !drawerOpen && f != null && isInside(f, dock)) {
+                    openAllAppsDrawer();
+                    return true;
+                }
+                if (e.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_UP && drawerOpen && f != null && isInside(f, allAppsDrawer)) {
+                    View firstRow = allAppsRow != null && allAppsRow.getChildCount() > 0 ? allAppsRow.getChildAt(0) : null;
+                    if (firstRow != null && (f == firstRow || (firstRow instanceof ViewGroup && isInside(f, (ViewGroup) firstRow)))) {
+                        closeAllAppsDrawer(true);
+                        return true;
+                    }
+                }
             }
         }
         return super.dispatchKeyEvent(e);
@@ -772,18 +856,6 @@ public class MainActivity extends Activity implements Panel.Host {
             }
         }
         dim.setBackgroundColor(Color.argb(Math.round(2.55f * prefs.dimPercent()), 0, 0, 0));
-        lockActionEnds();
-    }
-
-    /** Left on the first quick action and Right on the last stay on the row (four actions: All Apps, Downloads, Wallpapers, Inputs). */
-    private void lockActionEnds() {
-        if (chipRow == null) return;
-        List<View> shown = new ArrayList<>();
-        for (int i = 0; i < chipRow.getChildCount(); i++) {
-            View chip = chipRow.getChildAt(i);
-            if (chip.getVisibility() == View.VISIBLE && chip.isFocusable()) shown.add(chip);
-        }
-        Widgets.lockRowEnds(shown);
     }
 
     // ------------------------------------------------------------------ dock
@@ -895,6 +967,349 @@ public class MainActivity extends Activity implements Panel.Host {
 
     private void focusFirstDockTile() {
         if (dock.getChildCount() > 0) Widgets.cardOf(dock.getChildAt(0)).requestFocus();
+    }
+
+    private void buildAllAppsCarousel() {
+        if (allAppsRow == null) return;
+        View focused = root == null ? null : root.findFocus();
+        Object focusedTag = focused != null && isInside(focused, allAppsRow) ? focused.getTag() : null;
+        allAppsRow.removeAllViews();
+
+        final int rowH = theme.dp(68);
+        final int thumbW = theme.dp(88);
+        final int thumbH = theme.dp(50);
+
+        View zpRow = buildVerticalCarouselRow(
+                "zpapps",
+                zpAppsCarouselArt(thumbW, thumbH),
+                getDrawable(R.drawable.zpapps_logo_source),
+                "ZPAPPS Toolbox",
+                "20 TV Apps  ·  Shortcodes  ·  Essentials  ·  Cache Cleaner",
+                "Open",
+                rowH, thumbW, thumbH,
+                v -> open(new tv.calmhome.launcher.toolbox.ZpAppsPanel(this)),
+                null);
+        allAppsRow.addView(zpRow, new LinearLayout.LayoutParams(Widgets.MATCH, rowH));
+
+        java.util.Set<String> favs = new java.util.HashSet<>(DockList.visible(prefs.dock(), apps::usable));
+        for (String pkg : apps.all()) {
+            if (!apps.usable(pkg)) continue;
+            boolean inDock = favs.contains(pkg);
+            View appRow = buildVerticalCarouselRow(
+                    pkg,
+                    theme.liquid ? art.get(pkg, thumbW, thumbH) : null,
+                    theme.liquid ? null : (apps.banner(pkg) != null ? apps.banner(pkg) : apps.icon(pkg)),
+                    apps.label(pkg),
+                    inDock ? "Favorite on Home  ·  Hold OK for options" : "Installed TV App  ·  Hold OK for options",
+                    inDock ? "Favorite ★" : "Open",
+                    rowH, thumbW, thumbH,
+                    v -> launchApp(pkg),
+                    v -> { appCarouselMenu(pkg); return true; });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Widgets.MATCH, rowH);
+            lp.topMargin = theme.dp(8);
+            allAppsRow.addView(appRow, lp);
+        }
+
+        List<View> rows = new ArrayList<>();
+        for (int i = 0; i < allAppsRow.getChildCount(); i++) rows.add(allAppsRow.getChildAt(i));
+        for (View r : rows) {
+            if (r.getId() == View.NO_ID) r.setId(View.generateViewId());
+            r.setNextFocusLeftId(r.getId());
+            r.setNextFocusRightId(r.getId());
+        }
+        if (!rows.isEmpty()) {
+            rows.get(0).setNextFocusUpId(rows.get(0).getId());
+            rows.get(rows.size() - 1).setNextFocusDownId(rows.get(rows.size() - 1).getId());
+        }
+        for (int i = 0; i + 1 < rows.size(); i++) {
+            View cur = rows.get(i), next = rows.get(i + 1);
+            cur.setNextFocusDownId(next.getId());
+            next.setNextFocusUpId(cur.getId());
+        }
+        setDrawerGlassPresence(drawerOpen ? 1f : 0f);
+        if (drawerOpen) {
+            View restored = focusedTag == null ? null : allAppsRow.findViewWithTag(focusedTag);
+            if (restored == null || !restored.requestFocus()) focusFirstCarouselTile();
+        }
+    }
+
+    private View buildVerticalCarouselRow(
+            String tag,
+            tv.calmhome.launcher.data.AppArt.Art appArt,
+            android.graphics.drawable.Drawable fallbackDrawable,
+            String title,
+            String subtitle,
+            String badge,
+            int rowH, int thumbW, int thumbH,
+            View.OnClickListener click,
+            View.OnLongClickListener longClick) {
+        LinearLayout inner = new LinearLayout(this);
+        inner.setOrientation(LinearLayout.HORIZONTAL);
+        inner.setGravity(Gravity.CENTER_VERTICAL);
+        inner.setPadding(theme.dp(14), theme.dp(8), theme.dp(18), theme.dp(8));
+
+        FrameLayout thumbFrame = new FrameLayout(this);
+        GradientDrawable thumbBg = new GradientDrawable();
+        thumbBg.setColor(0x40141A24);
+        thumbBg.setCornerRadius(theme.dp(10));
+        thumbFrame.setBackground(thumbBg);
+        thumbFrame.setClipToOutline(true);
+        if (appArt != null) {
+            tv.calmhome.launcher.ui.TileArtView tvArt = new tv.calmhome.launcher.ui.TileArtView(this, appArt);
+            thumbFrame.addView(tvArt, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+        } else {
+            ImageView iv = new ImageView(this);
+            iv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+            if (fallbackDrawable != null) iv.setImageDrawable(fallbackDrawable);
+            thumbFrame.addView(iv, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+        }
+        inner.addView(thumbFrame, new LinearLayout.LayoutParams(thumbW, thumbH));
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setGravity(Gravity.CENTER_VERTICAL);
+        TextView titleView = theme.text(this, Theme.T_BODY, Theme.SOFT_WHITE, Theme.FONT_MEDIUM);
+        titleView.setText(title);
+        titleView.setSingleLine(true);
+        titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        labels.addView(titleView, new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP));
+
+        TextView subView = theme.text(this, Theme.T_CAPTION, Theme.withAlpha(Theme.SOFT_WHITE, 0.70f), Theme.FONT_REGULAR);
+        subView.setText(subtitle);
+        subView.setSingleLine(true);
+        subView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(Widgets.MATCH, Widgets.WRAP);
+        subLp.topMargin = theme.dp(2);
+        labels.addView(subView, subLp);
+
+        LinearLayout.LayoutParams labelsLp = new LinearLayout.LayoutParams(0, Widgets.WRAP, 1f);
+        labelsLp.leftMargin = theme.dp(14);
+        labelsLp.rightMargin = theme.dp(12);
+        inner.addView(labels, labelsLp);
+
+        TextView badgeView = theme.text(this, Theme.T_CAPTION,
+                "Open".equals(badge) ? Theme.withAlpha(Theme.SOFT_WHITE, 0.72f) : Theme.PULSE_CYAN,
+                Theme.FONT_MEDIUM);
+        badgeView.setText(badge);
+        badgeView.setSingleLine(true);
+        inner.addView(badgeView, new LinearLayout.LayoutParams(Widgets.WRAP, Widgets.WRAP));
+
+        final View rowView;
+        if (theme.liquid && theme.kit != null) {
+            tv.calmhome.launcher.ui.ZeroPulseGlassRow row = new tv.calmhome.launcher.ui.ZeroPulseGlassRow(
+                    this, theme.kit, tv.calmhome.launcher.ui.GraphiteGlassSurface.Shape.CAPSULE,
+                    theme.reducedMotion ? 0 : tv.calmhome.launcher.core.LiquidTokens.FOCUS_MS, false, 1.02f);
+            row.content().addView(inner, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+            rowView = row;
+        } else {
+            FrameLayout box = new FrameLayout(this);
+            box.setFocusable(true);
+            box.setClickable(true);
+            box.setBackground(theme.glass(Theme.R_PANEL, .55f));
+            box.addView(inner, new FrameLayout.LayoutParams(Widgets.MATCH, Widgets.MATCH));
+            rowView = box;
+        }
+        rowView.setTag(tag);
+        rowView.setContentDescription(title);
+        rowView.setOnClickListener(click);
+        if (longClick != null) rowView.setOnLongClickListener(longClick);
+        rowView.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && drawerOpen) centerVerticalCarouselItem(v);
+        });
+        return rowView;
+    }
+
+    private void centerVerticalCarouselItem(View item) {
+        if (allAppsScroll == null || item == null) return;
+        int viewportH = allAppsScroll.getHeight();
+        if (viewportH <= 0) {
+            allAppsScroll.post(() -> centerVerticalCarouselItem(item));
+            return;
+        }
+        int itemCenter = item.getTop() + item.getHeight() / 2;
+        int targetY = Math.max(0, itemCenter - viewportH / 2);
+        if (allAppsScrollAnim != null) allAppsScrollAnim.cancel();
+        int dur = tv.calmhome.launcher.core.MotionTokens.of(tv.calmhome.launcher.core.MotionTokens.CAROUSEL_MS, theme.reducedMotion);
+        if (dur == 0) {
+            allAppsScroll.scrollTo(0, targetY);
+        } else {
+            allAppsScrollAnim = android.animation.ObjectAnimator.ofInt(allAppsScroll, "scrollY", targetY);
+            allAppsScrollAnim.setDuration(dur);
+            allAppsScrollAnim.setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f));
+            allAppsScrollAnim.start();
+        }
+    }
+
+    private tv.calmhome.launcher.data.AppArt.Art zpAppsCarouselArt(int wPx, int hPx) {
+        android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.zpapps_logo_source);
+        if (bmp != null) {
+            return tv.calmhome.launcher.data.AppArt.fromIcon(
+                    new android.graphics.drawable.BitmapDrawable(getResources(), bmp), "zpapps", wPx, hPx);
+        }
+        return tv.calmhome.launcher.data.AppArt.monogram("ZPAPPS", wPx, hPx);
+    }
+
+    private void appCarouselMenu(final String pkg) {
+        boolean inDock = DockList.visible(prefs.dock(), apps::usable).contains(pkg);
+        MenuPanel m = new MenuPanel(this, apps.label(pkg), inDock ? "Favorite" : "Installed app");
+        m.item("Open", () -> launchApp(pkg));
+        if (inDock) {
+            m.item("Remove from Favorites", () -> {
+                prefs.setDock(DockList.remove(prefs.dock(), pkg));
+                buildDock();
+                toast(apps.label(pkg) + " removed from Favorites");
+            });
+        } else {
+            m.item("Add to Favorites", () -> {
+                prefs.setDock(DockList.add(prefs.dock(), pkg));
+                buildDock();
+                toast(apps.label(pkg) + " added to Favorites");
+            });
+        }
+        final Intent info = apps.appInfoIntent(pkg);
+        if (apps.resolves(info)) {
+            m.item("App info", () -> apps.start(info));
+            if (apps.userRemovable(pkg)) m.item("Uninstall… (App info asks to confirm)", () -> apps.start(info), true);
+        }
+        open(m);
+    }
+
+    private void setDrawerGlassPresence(float value) {
+        if (allAppsRow == null) return;
+        for (int i = 0; i < allAppsRow.getChildCount(); i++) {
+            View child = allAppsRow.getChildAt(i);
+            if (child instanceof tv.calmhome.launcher.ui.ZeroPulseGlassRow) {
+                tv.calmhome.launcher.ui.ZeroPulseGlassRow row = (tv.calmhome.launcher.ui.ZeroPulseGlassRow) child;
+                row.setSurfacePresence(value <= 0.001f ? 0f : (row.hasFocus() ? 1f : 0f));
+            }
+        }
+    }
+
+    private float offscreenDrawerY() {
+        return Math.max(theme.dp(320), Math.round(theme.screenH() * 0.55f));
+    }
+
+    private void focusFirstCarouselTile() {
+        if (allAppsRow != null && allAppsRow.getChildCount() > 0) {
+            allAppsRow.getChildAt(0).requestFocus();
+        }
+    }
+
+    void openAllAppsDrawer() {
+        if (allAppsDrawer == null || drawerOpen) return;
+        View focused = root == null ? null : root.findFocus();
+        dockReturnFocus = focused != null && isInside(focused, dock) ? focused : null;
+        drawerOpen = true;
+        allAppsDrawer.animate().cancel();
+        hero.animate().cancel();
+        bottomBlock.animate().cancel();
+        stage.setFrosted(true);
+        bottomBlock.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        allAppsDrawer.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        allAppsDrawer.setVisibility(View.VISIBLE);
+        int dur = tv.calmhome.launcher.core.MotionTokens.of(tv.calmhome.launcher.core.MotionTokens.DRAWER_SLIDE_MS, theme.reducedMotion);
+        float homeLift = -theme.dp(220);
+        if (dur == 0) {
+            allAppsDrawer.setTranslationY(0f);
+            allAppsDrawer.setAlpha(1f);
+            hero.setTranslationY(homeLift);
+            hero.setAlpha(0f);
+            bottomBlock.setTranslationY(homeLift);
+            bottomBlock.setAlpha(0f);
+        } else {
+            allAppsDrawer.setTranslationY(offscreenDrawerY());
+            allAppsDrawer.setAlpha(0f);
+            allAppsDrawer.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(dur)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.8f))
+                    .start();
+            hero.animate()
+                    .translationY(homeLift)
+                    .alpha(0f)
+                    .setDuration(dur)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                    .start();
+            bottomBlock.animate()
+                    .translationY(homeLift)
+                    .alpha(0f)
+                    .setDuration(dur)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                    .start();
+        }
+        updateShelfHint(null);
+        focusFirstCarouselTile();
+        setDrawerGlassPresence(1f);
+        if (allAppsScroll != null) allAppsScroll.scrollTo(0, 0);
+    }
+
+    void closeAllAppsDrawer(boolean restoreDockFocus) {
+        if (allAppsDrawer == null || !drawerOpen) return;
+        drawerOpen = false;
+        allAppsDrawer.animate().cancel();
+        hero.animate().cancel();
+        bottomBlock.animate().cancel();
+        if (panels.isEmpty()) stage.setFrosted(false);
+        allAppsDrawer.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        bottomBlock.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        if (restoreDockFocus) {
+            if (dockReturnFocus == null || !dockReturnFocus.isAttachedToWindow() || !dockReturnFocus.requestFocus()) {
+                focusFirstDockTile();
+            }
+        }
+        dockReturnFocus = null;
+        int dur = tv.calmhome.launcher.core.MotionTokens.of(tv.calmhome.launcher.core.MotionTokens.DRAWER_SLIDE_MS, theme.reducedMotion);
+        if (dur == 0) {
+            allAppsDrawer.setTranslationY(offscreenDrawerY());
+            allAppsDrawer.setAlpha(0f);
+            allAppsDrawer.setVisibility(View.INVISIBLE);
+            setDrawerGlassPresence(0f);
+            hero.setTranslationY(0f);
+            hero.setAlpha(1f);
+            bottomBlock.setTranslationY(0f);
+            bottomBlock.setAlpha(1f);
+        } else {
+            allAppsDrawer.animate()
+                    .translationY(offscreenDrawerY())
+                    .alpha(0f)
+                    .setDuration(dur)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                    .withEndAction(() -> {
+                        if (!drawerOpen) {
+                            allAppsDrawer.setVisibility(View.INVISIBLE);
+                            setDrawerGlassPresence(0f);
+                        }
+                    })
+                    .start();
+            hero.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(dur)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                    .start();
+            bottomBlock.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(dur)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f))
+                    .start();
+        }
+    }
+
+    /** For tests: true while the bottom All Apps & ZPAPPS carousel drawer is open. */
+    boolean isAllAppsDrawerOpen() {
+        return drawerOpen;
+    }
+
+    /** For tests: the bottom All Apps & ZPAPPS carousel container. */
+    LinearLayout allAppsDrawer() {
+        return allAppsDrawer;
+    }
+
+    /** For tests: the horizontal row of tiles inside the All Apps & ZPAPPS carousel. */
+    LinearLayout allAppsRow() {
+        return allAppsRow;
     }
 
     private void launchApp(String pkg) {
@@ -1046,11 +1461,15 @@ public class MainActivity extends Activity implements Panel.Host {
         return null;
     }
 
-    /** Home's content under its header: the centre and the row block (the header itself never moves). */
+    /** Home's content under its header: the vertical carousel if open, otherwise the centre hero and dock block. */
     private List<View> homeMotion() {
         List<View> m = new ArrayList<>();
-        m.add(hero);
-        m.add(bottomBlock);
+        if (drawerOpen && allAppsDrawer != null) {
+            m.add(allAppsDrawer);
+        } else {
+            m.add(hero);
+            m.add(bottomBlock);
+        }
         return m;
     }
 
@@ -1097,7 +1516,7 @@ public class MainActivity extends Activity implements Panel.Host {
         if (top != null && top.navigation() != null) top.navigation().setAlpha(1f);
         for (View m : motion) {
             m.animate().cancel();
-            m.setAlpha(1f);                                   // hidden behind the new screen now, ready for when it shows again
+            m.setAlpha((drawerOpen && (m == bottomBlock || m == hero)) ? 0f : 1f);                                   // hidden behind the new screen now, ready for when it shows again
         }
         if (closed != null) {
             root.removeView(was);
@@ -1151,7 +1570,7 @@ public class MainActivity extends Activity implements Panel.Host {
         p.onClosed();
         View back = p.returnFocus();
         if (panels.isEmpty()) {
-            stage.setFrosted(false);
+            stage.setFrosted(drawerOpen);
             mainUi.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
             // Back to Home from a full screen: Home's header was there all along (only hidden); its content fades back in.
             if (glides(p)) {

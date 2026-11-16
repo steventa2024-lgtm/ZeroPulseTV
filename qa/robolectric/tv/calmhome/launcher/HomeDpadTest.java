@@ -118,39 +118,40 @@ public class HomeDpadTest {
         assertEquals("Settings", label(home));
     }
 
-    @Test public void leftOnTheFirstQuickActionAndRightOnTheLastStayOnTheActionsWhateverTheRowBeside() throws Exception {
+    @Test public void homeHasNoDuplicateQuickActionsAndDownOpensVerticalCarouselScrollingDownAndUp() throws Exception {
         for (boolean eight : new boolean[]{false, true}) {
             MainActivity home = home(eight);
-            List<ZeroPulseGlassQuickAction> actions = HomeTestSupport.glassActions(home);
-            assertEquals("four quick actions: All Apps, Downloads, Wallpapers, Inputs", 4, actions.size());
-            assertTrue(actions.get(0).requestFocus());
-            assertFalse("Left on the first action goes nowhere (" + (eight ? "eight" : "seven") + " favorites)", HomeTestSupport.dpad(home, LEFT));
-            assertEquals(ACTIONS[0], label(home));
-            for (int i = 1; i < ACTIONS.length; i++) {
-                assertTrue(HomeTestSupport.dpad(home, RIGHT));
-                assertEquals(ACTIONS[i], label(home));
-            }
-            assertFalse("Right on the last action goes nowhere, not to a favorite (3005 jumped to the eighth)", HomeTestSupport.dpad(home, RIGHT));
-            assertEquals(ACTIONS[ACTIONS.length - 1], label(home));
-            assertTrue("it is still an action, not a tile", HomeTestSupport.focus(home) instanceof ZeroPulseGlassQuickAction);
-        }
-    }
+            assertTrue("duplicate bottom quick-action pills removed", HomeTestSupport.glassActions(home).isEmpty());
+            assertFalse("carousel closed at rest", home.isAllAppsDrawerOpen());
 
-    @Test public void theFourQuickActionsShareTheRowEvenly() throws Exception {
-        MainActivity home = home(false);
-        List<ZeroPulseGlassQuickAction> actions = HomeTestSupport.glassActions(home);
-        assertEquals(4, actions.size());
-        int w = actions.get(0).getWidth();
-        assertTrue(w > 0);
-        for (ZeroPulseGlassQuickAction a : actions) {
-            assertEquals("every action is shown", View.VISIBLE, a.getVisibility());
-            assertTrue("equal widths (within a pixel of rounding)", Math.abs(a.getWidth() - w) <= 1);
+            HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_DOWN);
+            ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertTrue("DPAD_DOWN from dock opens vertical All Apps & ZPAPPS carousel", home.isAllAppsDrawerOpen());
+            assertEquals("zpapps", tag(home));
+            assertFalse("Left stays inside vertical carousel row", HomeTestSupport.dpad(home, LEFT));
+            assertFalse("Right stays inside vertical carousel row", HomeTestSupport.dpad(home, RIGHT));
+            assertEquals("zpapps", tag(home));
+
+            List<View> carousel = HomeTestSupport.carouselRows(home);
+            assertTrue("ZPAPPS + installed apps", carousel.size() >= (eight ? 9 : 8));
+            for (int i = 1; i < carousel.size(); i++) {
+                assertTrue("Down scrolls vertically to carousel item " + i, HomeTestSupport.dpad(home, DOWN));
+                assertSame(carousel.get(i), HomeTestSupport.focus(home));
+            }
+            assertFalse("Down at last vertical carousel item stops cleanly", HomeTestSupport.dpad(home, DOWN));
+
+            for (int i = carousel.size() - 2; i >= 0; i--) {
+                HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_UP);
+                ShadowLooper.idleMainLooper(50, java.util.concurrent.TimeUnit.MILLISECONDS);
+                assertTrue("scrolling back up inside carousel stays open", home.isAllAppsDrawerOpen());
+                assertSame(carousel.get(i), HomeTestSupport.focus(home));
+            }
+
+            HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_UP);
+            ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertFalse("DPAD_UP at top of vertical carousel returns smoothly to Home", home.isAllAppsDrawerOpen());
+            assertEquals(MockTvApps.DEFAULTS[0][0], tag(home));
         }
-        ZeroPulseGlassQuickAction last = actions.get(3);
-        assertEquals("Inputs", String.valueOf(last.getContentDescription()));
-        assertTrue(last.requestFocus());
-        assertFalse(HomeTestSupport.dpad(home, RIGHT));
-        assertSame(last, HomeTestSupport.focus(home));
     }
 
     @Test public void theTileRowStopsAtItsEndsWithSevenAndWithEightFavorites() throws Exception {
@@ -186,26 +187,19 @@ public class HomeDpadTest {
         }
     }
 
-    @Test public void downFromATileAndUpFromAnActionMeetOnTheSameColumn() throws Exception {
+    @Test public void downFromAnyDockTileOpensCarouselAndUpRestoresThatDockTile() throws Exception {
         MainActivity home = home(false);
         List<ZeroPulseGlassAppTile> tiles = HomeTestSupport.glassTiles(home);
         for (ZeroPulseGlassAppTile tile : tiles) {
             assertTrue(tile.requestFocus());
-            assertTrue(HomeTestSupport.dpad(home, DOWN));
-            View action = HomeTestSupport.focus(home);
-            assertTrue("a tile's Down is a quick action", action instanceof ZeroPulseGlassQuickAction);
-            int[] t = new int[2], a = new int[2];
-            tile.getLocationOnScreen(t);
-            action.getLocationOnScreen(a);
-            float tileCenter = t[0] + tile.getWidth() / 2f, actionCenter = a[0] + action.getWidth() / 2f;
-            float nearest = Float.MAX_VALUE;
-            for (ZeroPulseGlassQuickAction other : HomeTestSupport.glassActions(home)) {
-                int[] o = new int[2];
-                other.getLocationOnScreen(o);
-                nearest = Math.min(nearest, Math.abs(o[0] + other.getWidth() / 2f - tileCenter));
-            }
-            assertTrue("Down lands on the action nearest the tile's centre (" + Math.abs(actionCenter - tileCenter) + " against " + nearest + ")",
-                    Math.abs(actionCenter - tileCenter) <= nearest + action.getWidth() * 0.6f);
+            HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_DOWN);
+            ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertTrue("Down opens the carousel", home.isAllAppsDrawerOpen());
+            assertEquals("focus lands on ZPAPPS Toolbox first", "zpapps", tag(home));
+            HomeTestSupport.press(home, KeyEvent.KEYCODE_DPAD_UP);
+            ShadowLooper.idleMainLooper(300, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertFalse("Up closes the carousel", home.isAllAppsDrawerOpen());
+            assertSame("focus returns to the dock tile that opened it", tile, HomeTestSupport.focus(home));
         }
     }
 

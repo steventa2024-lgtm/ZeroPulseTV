@@ -57,10 +57,15 @@ abstract class ZeroPulseGlassControl extends FrameLayout {
         return finish;
     }
 
-    /** How much of the glass and its finish show, 0..1 (a list row has none until it takes focus). */
+    /** How much of the glass and its finish show, 0..1 (a list row or hidden drawer tile has none while hidden). */
     protected final void setPresence(float value) {
         glass.setPresence(value);
         finish.setPresence(value);
+    }
+
+    /** Adjusts whether the glass surface and finish participate in rendering (e.g. off-screen drawer tiles). */
+    public final void setSurfacePresence(float value) {
+        setPresence(value);
     }
 
     /** Keeps the finish off a centred rectangle {@code w x h} (the artwork's place, corners {@code radius}); 0 x 0 puts it over everything. */

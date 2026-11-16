@@ -73,24 +73,55 @@ final class HomeTestSupport {
         return typed;
     }
 
-    /** Home's glass app tiles, left to right (an empty-state notice is a tile with no package tag). */
+    private static boolean inAllAppsDrawer(Activity home, View v) {
+        if (!(home instanceof MainActivity)) return false;
+        View drawer = ((MainActivity) home).allAppsDrawer();
+        if (drawer == null) return false;
+        View cur = v;
+        while (cur != null) {
+            if (cur == drawer) return true;
+            cur = cur.getParent() instanceof View ? (View) cur.getParent() : null;
+        }
+        return false;
+    }
+
+    /** Home's Saved Dock glass app tiles, left to right (excluding the hidden All Apps carousel drawer). */
     static List<ZeroPulseGlassAppTile> glassTiles(Activity home) {
-        return all(home, ZeroPulseGlassAppTile.class);
+        List<ZeroPulseGlassAppTile> out = new ArrayList<>();
+        for (ZeroPulseGlassAppTile t : all(home, ZeroPulseGlassAppTile.class)) {
+            if (!inAllAppsDrawer(home, t)) out.add(t);
+        }
+        return out;
+    }
+
+    /** Vertical carousel item views inside the bottom-anchored All Apps & ZPAPPS carousel. */
+    static List<View> carouselRows(MainActivity home) {
+        List<View> out = new ArrayList<>();
+        android.widget.LinearLayout col = home.allAppsRow();
+        if (col != null) for (int i = 0; i < col.getChildCount(); i++) out.add(col.getChildAt(i));
+        return out;
     }
 
     static List<ZeroPulseGlassQuickAction> glassActions(Activity home) {
         return all(home, ZeroPulseGlassQuickAction.class);
     }
 
+    /** Currently active (present) glass surfaces on Home. */
     static List<GraphiteGlassSurface> surfaces(Activity home) {
-        return all(home, GraphiteGlassSurface.class);
+        List<GraphiteGlassSurface> out = new ArrayList<>();
+        for (GraphiteGlassSurface s : all(home, GraphiteGlassSurface.class)) {
+            if (s.isPresent()) out.add(s);
+        }
+        return out;
     }
 
-    /** The package tags of the tiles on Home, left to right, in either look (a tag on a focusable, clickable card). */
+    /** The package tags of the Saved Dock tiles on Home, left to right, in either look (excluding the hidden carousel drawer). */
     static List<String> favoritePackages(Activity home) {
         List<String> out = new ArrayList<>();
         for (FrameLayout card : all(home, FrameLayout.class)) {
-            if (card.getTag() instanceof String && card.isFocusable() && card.isClickable()) out.add((String) card.getTag());
+            if (!inAllAppsDrawer(home, card) && card.getTag() instanceof String && card.isFocusable() && card.isClickable()) {
+                out.add((String) card.getTag());
+            }
         }
         return out;
     }

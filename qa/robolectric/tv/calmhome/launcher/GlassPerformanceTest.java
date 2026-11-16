@@ -130,19 +130,19 @@ public class GlassPerformanceTest {
     @Test public void drawingTheGlassTheFinishAndTheArtworkMidFocusAllocatesNothing() throws Exception {
         MainActivity home = glassHome();
         ZeroPulseGlassAppTile tile = HomeTestSupport.glassTiles(home).get(2);
-        ZeroPulseGlassQuickAction action = HomeTestSupport.glassActions(home).get(1);
-        assertTrue(tile.glass().hasMaterial() && action.glass().hasMaterial());
-        Bitmap target = Bitmap.createBitmap(Math.max(tile.getWidth(), action.getWidth()), Math.max(tile.getHeight(), action.getHeight()), Bitmap.Config.ARGB_8888);
+        ZeroPulseGlassAppTile second = HomeTestSupport.glassTiles(home).get(3);
+        assertTrue(tile.glass().hasMaterial() && second.glass().hasMaterial());
+        Bitmap target = Bitmap.createBitmap(tile.getWidth(), tile.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(target);
-        for (int i = 0; i < 30; i++) { tile.draw(canvas); action.draw(canvas); }          // warm up
+        for (int i = 0; i < 30; i++) { tile.draw(canvas); second.draw(canvas); }          // warm up
         final long[] bytes = new long[1];
         bytes[0] = allocated(() -> {
             for (int i = 0; i < 100; i++) {
                 float level = (i % 10) / 10f;                           // a focus animation: every frame at a different crossfade level
                 tile.glass().setLevel(level);
-                action.glass().setLevel(level);
+                second.glass().setLevel(level);
                 tile.draw(canvas);
-                action.draw(canvas);
+                second.draw(canvas);
             }
         });
         assertTrue("a focus animation's frames (glass crossfade, finish, artwork, label) allocate almost nothing: " + bytes[0] + " bytes in 100 frames of two controls",

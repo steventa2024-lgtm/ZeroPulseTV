@@ -134,7 +134,8 @@ public class HomeArtworkTest {
         assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO, finish.getImportantForAccessibility());
         assertEquals("it is the last child, above the content", tile.getChildCount() - 1, tile.indexOfChild(finish));
         assertFalse("the glass layer itself is inert too", tile.glass().isFocusable() || tile.glass().isClickable());
-        assertEquals("both the quick actions and the tiles have one (7 + 4)", 11, countFinishLayers(h));
+        assertEquals("every Home tile has its finish layer (7 + 0 quick actions)", 7, countFinishLayers(h));
+        assertTrue("duplicate quick-action pills removed", HomeTestSupport.glassActions(h).isEmpty());
     }
 
     private static int countFinishLayers(MainActivity h) {
@@ -185,36 +186,36 @@ public class HomeArtworkTest {
 
     // ------------------------------------------------------------------ the row, the actions, the margins
 
-    @Test public void theTileRowEndsExactlyWhereTheQuickActionsEndAndTheActionsAreEvenlySpaced() throws Exception {
+    @Test public void theTileRowIsEvenlySpacedWithZeroDuplicateQuickActions() throws Exception {
         MainActivity h = home();
         List<ZeroPulseGlassAppTile> tiles = HomeTestSupport.glassTiles(h);
-        List<ZeroPulseGlassQuickAction> actions = HomeTestSupport.glassActions(h);
-        assertEquals("four quick actions (the Assistant was removed)", 4, actions.size());
+        assertTrue("duplicate quick actions removed", HomeTestSupport.glassActions(h).isEmpty());
         Rect firstTile = inWindow(tiles.get(0)), lastTile = inWindow(tiles.get(6));
-        Rect firstAction = inWindow(actions.get(0)), lastAction = inWindow(actions.get(3));
-        assertEquals("the row starts where the actions start", firstAction.left, firstTile.left, 1);
-        assertEquals("and ends where they end", lastAction.right, lastTile.right, 1);
-        List<Integer> widths = new ArrayList<>(), gaps = new ArrayList<>();
-        for (int i = 0; i < actions.size(); i++) {
-            widths.add(inWindow(actions.get(i)).width());
-            if (i > 0) gaps.add(inWindow(actions.get(i)).left - inWindow(actions.get(i - 1)).right);
-        }
-        for (int w : widths) assertEquals("equal widths", widths.get(0), w, 1);
-        for (int g : gaps) assertEquals("equal gaps", gaps.get(0), g, 1);
+        assertTrue("starts inside 5 % safe margin: " + firstTile, firstTile.left >= 96 - 1);
+        assertTrue("ends inside 5 % safe margin: " + lastTile, lastTile.right <= 1920 - 96 + 1);
         int tileGap = inWindow(tiles.get(1)).left - firstTile.right;
-        assertEquals("the same gap between actions as between tiles", tileGap, gaps.get(0), 1);
-        for (int i = 1; i < tiles.size(); i++) assertEquals("equal tile gaps", tileGap, inWindow(tiles.get(i)).left - inWindow(tiles.get(i - 1)).right, 1);
+        for (int i = 1; i < tiles.size(); i++) {
+            assertEquals("equal tile gaps", tileGap, inWindow(tiles.get(i)).left - inWindow(tiles.get(i - 1)).right, 1);
+        }
     }
 
-    @Test public void theQuickActionsSitComfortablyInsideTheTvSafeMargins() throws Exception {
+    @Test public void theBottomDrawerStartsHiddenAndThePeekHandleSitsInsideSafeMargins() throws Exception {
         MainActivity h = home();
-        for (ZeroPulseGlassQuickAction action : HomeTestSupport.glassActions(h)) {
-            Rect r = inWindow(action);
-            assertTrue("left inside 5 %: " + r, r.left >= 96 - 1);
-            assertTrue("right inside 5 %: " + r, r.right <= 1920 - 96 + 1);
-            assertTrue("bottom at least 5 % + 12 px above the edge: " + r, r.bottom <= 1080 - 54 - 12);
+        assertFalse("drawer closed at rest", h.isAllAppsDrawerOpen());
+        View drawer = h.allAppsDrawer();
+        assertNotNull(drawer);
+        assertEquals(View.INVISIBLE, drawer.getVisibility());
+        assertEquals(0f, drawer.getAlpha(), 0.01f);
+        assertTrue("translated off-screen at rest", drawer.getTranslationY() > 0f);
+        TextView peek = null;
+        for (TextView tv : HomeTestSupport.all(h, TextView.class)) {
+            if (tv.getText() != null && tv.getText().toString().contains("All Apps & ZPAPPS")) { peek = tv; break; }
         }
-        assertEquals("slim: 36 dp", 72, HomeTestSupport.glassActions(h).get(0).getHeight());
+        assertNotNull("slim peek handle shown", peek);
+        Rect r = inWindow((View) peek.getParent());
+        assertTrue("peek left inside 5 %: " + r, r.left >= 96 - 1);
+        assertTrue("peek right inside 5 %: " + r, r.right <= 1920 - 96 + 1);
+        assertTrue("peek above bottom safe margin: " + r, r.bottom <= 1080 - 54 + 2);
     }
 
     @Test public void thereIsNoRecentlyOpenedPlaceholderAndNoFooterOnLiquidGlassHome() throws Exception {

@@ -13,8 +13,8 @@ Release: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/v3.0.0-be
 APK: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk
 Checksums: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/SHA256SUMS.txt
 Filename: ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk
-APK SHA-256: c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7
-APK size: 9894706 bytes
+APK SHA-256: 4affd78a2fc297956ab574bf16b8bfd6b7f3c5cbce8d408a4c090d96ffde5656
+APK size: 9903097 bytes
 Signing-certificate SHA-256: 0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd
 Package: tv.calmhome.launcher; versionName 3.0.0-beta.8-zpapps; versionCode 3006; minSdk 26 (Android 8.0); targetSdk 34.
 Current installation/safety guide: https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/INSTALL.md

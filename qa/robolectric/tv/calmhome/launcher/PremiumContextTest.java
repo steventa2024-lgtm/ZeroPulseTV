@@ -79,7 +79,7 @@ public class PremiumContextTest {
         assertTrue(HomeTestSupport.hasText(h, "Open"));
         assertTrue(HomeTestSupport.hasText(h, "Remove from Favorites"));
         assertFalse("no Update without a real update source", HomeTestSupport.hasText(h, "Update"));
-        assertTrue("the bottom buttons keep their meaning", HomeTestSupport.hasText(h, "All Apps") && HomeTestSupport.hasText(h, "Wallpapers"));
+        assertTrue("no duplicate quick actions on Home", HomeTestSupport.glassActions(h).isEmpty());
     }
 
     @Test public void thisLauncherAndSystemAppsAreNeverOfferedForRemoval() {
@@ -96,9 +96,9 @@ public class PremiumContextTest {
         settle();
         assertEquals(MainActivity.SHELF_HINT, h.shelfTitle().getText().toString());
         assertTrue(h.shelfTitle().getAlpha() > 0.99f);
-        View action = HomeTestSupport.glassActions(h).get(0);
-        assertTrue(action.requestFocus());
+        HomeTestSupport.press(h, android.view.KeyEvent.KEYCODE_DPAD_DOWN);
         settle();
+        assertTrue("Down opened the All Apps carousel", h.isAllAppsDrawerOpen());
         assertEquals("back to its name when focus leaves the row", "Favorites", h.shelfTitle().getText().toString());
     }
 }

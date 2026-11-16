@@ -81,8 +81,9 @@ public class LiquidGlassActivityTest {
         MainActivity home = launch(null).get();
         assertTrue(home.theme().liquid);
         assertTrue("armed until Home has stayed up", new Prefs(c).liquidStarting());
-        assertEquals("the empty-state card and the four quick actions are glass (the header is the supplied glass kit)",
-                5, HomeTestSupport.surfaces(home).size());
+        assertEquals("the empty-state card and the bottom peek handle are glass (the header is the supplied glass kit)",
+                2, HomeTestSupport.surfaces(home).size());
+        assertEquals("duplicate quick actions were removed from Home", 0, HomeTestSupport.glassActions(home).size());
         assertEquals("no tile or action uses the old painter", 0, glassViews(home.getWindow().getDecorView()));
     }
 

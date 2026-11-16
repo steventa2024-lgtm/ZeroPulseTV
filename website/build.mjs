@@ -10,6 +10,10 @@ const release = JSON.parse(await readFile(join(here, 'release.json'), 'utf8'));
 if (!/^[a-f0-9]{64}$/.test(release.sha256) || !/^[a-f0-9]{64}$/.test(release.certificate)) throw new Error('Invalid release fingerprints');
 if (release.apk !== `${release.repo}/releases/download/${release.tag}/${release.filename}`) throw new Error('APK URL mismatch');
 if (!/^\d{5,9}$/.test(String(release.downloaderCode || '')) || release.downloaderShortUrl !== `https://aftv.news/${release.downloaderCode}` || !/^\d{5,9}$/.test(String(release.releasePageDownloaderCode || ''))) throw new Error('Invalid Downloader shortcode metadata');
+const zpapps = release.zpapps;
+if (!zpapps || !/^[a-f0-9]{64}$/.test(zpapps.sha256) || !/^[a-f0-9]{64}$/.test(zpapps.certificate)) throw new Error('Invalid ZPAPPS fingerprints');
+if (zpapps.apk !== `${release.repo}/releases/download/zpapps-v${zpapps.version}/${zpapps.filename}`) throw new Error('ZPAPPS APK URL mismatch');
+if (!/^\d{5,9}$/.test(String(zpapps.downloaderCode || '')) || zpapps.downloaderShortUrl !== `https://aftv.news/${zpapps.downloaderCode}`) throw new Error('Invalid ZPAPPS Downloader shortcode metadata');
 await rm(out, { recursive: true, force: true });
 await mkdir(join(out, 'assets', 'screenshots'), { recursive: true });
 function gitBlobHash(bytes) {
@@ -35,6 +39,17 @@ const vars = {
   DOWNLOADER_CODE: release.downloaderCode,
   DOWNLOADER_SHORT_URL: release.downloaderShortUrl,
   RELEASE_PAGE_DOWNLOADER_CODE: release.releasePageDownloaderCode,
+  ZPAPPS_VERSION: zpapps.version,
+  ZPAPPS_VERSION_CODE: zpapps.versionCode,
+  ZPAPPS_PACKAGE: zpapps.packageName,
+  ZPAPPS_APK: zpapps.apk,
+  ZPAPPS_FILENAME: zpapps.filename,
+  ZPAPPS_NOTES: zpapps.notes,
+  ZPAPPS_CHECKSUMS: zpapps.checksums,
+  ZPAPPS_SHA256: zpapps.sha256,
+  ZPAPPS_CERTIFICATE: zpapps.certificate,
+  ZPAPPS_DOWNLOADER_CODE: zpapps.downloaderCode,
+  ZPAPPS_DOWNLOADER_SHORT_URL: zpapps.downloaderShortUrl,
 };
 let html = await readFile(join(here, 'index.html'), 'utf8');
 html = html.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => {

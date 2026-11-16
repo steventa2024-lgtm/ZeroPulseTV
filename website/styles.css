@@ -5,3 +5,7 @@
 .tutorial-video{margin:0 auto 28px;padding:14px;max-width:960px}
 .tutorial-video video{display:block;width:100%;aspect-ratio:16/9;border-radius:14px;background:#050910;border:1px solid rgba(255,255,255,.12)}
 .tutorial-caption{margin:12px 4px 2px;font-size:.92rem;color:rgba(241,246,251,.76);text-align:center}
+.download-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.download-grid .download-card{padding:36px;height:100%}
+.platform-badge{display:inline-block;margin:0 0 14px;padding:7px 13px;border-radius:999px;border:1px solid #2b5b7a;background:#102941;color:var(--cyan);font-size:.76rem;font-weight:600;line-height:1.4}
+@media(max-width:960px){.download-grid{grid-template-columns:1fr}}

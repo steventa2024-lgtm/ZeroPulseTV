@@ -14,6 +14,20 @@
   "certificate": "0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd",
   "bytes": 9903097,
   "filename": "ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk",
+  "zpapps": {
+    "version": "1.0.0",
+    "versionCode": 1001,
+    "packageName": "tv.zeropulse.zpapps",
+    "filename": "ZPAPPS-1.0.0-1001.apk",
+    "bytes": 10370769,
+    "sha256": "c493fc0736afdf3ac657d91bed90a0d0bce2e8b1bc55b241b463ad0c26529116",
+    "certificate": "0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd",
+    "apk": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/zpapps-v1.0.0/ZPAPPS-1.0.0-1001.apk",
+    "notes": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/zpapps-v1.0.0",
+    "checksums": "https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/zpapps-v1.0.0/SHA256SUMS.txt",
+    "downloaderCode": "1624770",
+    "downloaderShortUrl": "https://aftv.news/1624770"
+  },
   "screenshots": {
     "01-home.png": "497adae083bdfde41c95bb7484086d26a257c8ea",
     "02-zpapps-discover.png": "65fc9d7589ed81a91e7a74bb2f9d493a292e22c4",

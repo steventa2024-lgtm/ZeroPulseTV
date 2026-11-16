@@ -16,14 +16,36 @@ test('release pins exact version-specific public APK and Downloader shortcode', 
  assert.ok(html.includes('{{DOWNLOADER_CODE}}') && html.includes('data-copy="{{DOWNLOADER_CODE}}"'));
  assert.ok(html.includes('{{DOWNLOADER_SHORT_URL}}') && html.includes('{{RELEASE_PAGE_DOWNLOADER_CODE}}'));
 });
+test('release pins standalone ZPAPPS APK and Fire TV Downloader shortcode 1624770', () => {
+ assert.ok(config.zpapps);
+ assert.equal(config.zpapps.version, '1.0.0');
+ assert.equal(config.zpapps.versionCode, 1001);
+ assert.equal(config.zpapps.packageName, 'tv.zeropulse.zpapps');
+ assert.equal(config.zpapps.filename, 'ZPAPPS-1.0.0-1001.apk');
+ assert.equal(config.zpapps.bytes, 10370769);
+ assert.equal(config.zpapps.sha256, 'c493fc0736afdf3ac657d91bed90a0d0bce2e8b1bc55b241b463ad0c26529116');
+ assert.equal(config.zpapps.certificate, '0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd');
+ assert.equal(config.zpapps.apk, 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/zpapps-v1.0.0/ZPAPPS-1.0.0-1001.apk');
+ assert.equal(config.zpapps.downloaderCode, '1624770');
+ assert.equal(config.zpapps.downloaderShortUrl, 'https://aftv.news/1624770');
+ assert.ok(html.includes('id="zpapps-download"'));
+ assert.ok(html.includes('Works on Fire TV Stick (Fire OS 6–8), Android TV &amp; Google TV — Keeps your existing Home screen'));
+ assert.ok(html.includes('{{ZPAPPS_DOWNLOADER_CODE}}') && html.includes('data-copy="{{ZPAPPS_DOWNLOADER_CODE}}"'));
+ assert.ok(html.includes('Copy Downloader Code: {{ZPAPPS_DOWNLOADER_CODE}}'));
+ assert.ok(html.includes('aftv.news/{{ZPAPPS_DOWNLOADER_CODE}}'));
+ assert.ok(html.includes('href="{{ZPAPPS_APK}}"') && html.includes('{{ZPAPPS_FILENAME}}') && html.includes('10.37 MB'));
+ assert.ok(html.includes('{{ZPAPPS_SHA256}}'));
+});
 test('all download CTA hrefs share the authoritative template', () => {
  const links = [...html.matchAll(/<a[^>]*class="[^"]*apk-link[^"]*"[^>]*href="([^"]+)"/g)];
  assert.equal(links.length, 3); links.forEach(x => assert.equal(x[1], '{{APK}}'));
+ const zpappsLinks = [...html.matchAll(/<a[^>]*class="[^"]*zpapps-download-link[^"]*"[^>]*href="([^"]+)"/g)];
+ assert.equal(zpappsLinks.length, 2); zpappsLinks.forEach(x => assert.equal(x[1], '{{ZPAPPS_APK}}'));
  assert.ok(!html.includes('/releases/latest'));
 });
 test('technical fingerprint disclosure is closed by default', () => {
  assert.match(html, /<details class="technical">/);
- assert.ok(!/<details[^>]*class="technical"[^>]*\bopen\b/.test(html));
+ assert.ok(!/<details[^>]*class="technical[^"]*"[^>]*\bopen\b/.test(html));
  const technical = html.slice(html.indexOf('<details class="technical">'), html.indexOf('<section id="faq"'));
  assert.ok(technical.includes('{{SHA256}}') && technical.includes('{{CERTIFICATE}}'));
 });
@@ -82,14 +104,16 @@ test('primary copy control and plain-text download are prominent', () => {
  assert.ok(html.indexOf('id="copy-prompt"') < html.indexOf('Download prompt (.txt)'));
  assert.ok(html.indexOf('Download prompt (.txt)') < html.indexOf('data-step="0"'));
 });
-test('TV step covers developer options, unknown apps and no port forwarding', () => {
+test('TV and Fire Stick step covers developer options, unknown apps and no port forwarding', () => {
  const tv = html.slice(html.indexOf('data-step="0"'), html.indexOf('data-step="1"'));
  assert.ok(tv.includes('seven times') && tv.includes('Install unknown apps') && tv.includes('Never expose ADB through router port forwarding'));
+ assert.ok(tv.includes('Fire TV Stick') && tv.includes('My Fire TV'));
 });
-test('Downloader and Wireless ADB steps cover shortcode 7261699, install -r and appops', () => {
+test('Downloader and Wireless ADB steps cover shortcodes 7261699 and 1624770, install -r and appops', () => {
  const dl = html.slice(html.indexOf('data-step="1"'), html.indexOf('data-step="2"'));
  const adb = html.slice(html.indexOf('data-step="2"'), html.indexOf('wizard-bottom'));
  assert.ok(dl.includes('Downloader by AFTVnews') && dl.includes('{{DOWNLOADER_CODE}}') && dl.includes('aftv.news/{{DOWNLOADER_CODE}}') && dl.includes('{{RELEASE_PAGE_DOWNLOADER_CODE}}') && dl.includes('Home launcher'));
+ assert.ok(dl.includes('{{ZPAPPS_DOWNLOADER_CODE}}') && dl.includes('aftv.news/{{ZPAPPS_DOWNLOADER_CODE}}'));
  assert.ok(adb.includes('This website never connects to your TV') && adb.includes('5555') && adb.includes('adb install -r {{FILENAME}}') && adb.includes('appops set tv.calmhome.launcher REQUEST_INSTALL_PACKAGES allow'));
 });
 test('dialogs return focus to their opener', () => {

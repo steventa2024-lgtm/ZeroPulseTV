@@ -1,6 +1,5 @@
 package tv.calmhome.launcher.screens;
 
-import android.content.pm.PackageInfo;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
@@ -8,6 +7,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import tv.calmhome.glasscomponents.GraphiteGlassRenderer;
+import tv.calmhome.launcher.BuildConfig;
 import tv.calmhome.launcher.BuildInfo;
 import tv.calmhome.launcher.core.WallpaperCatalog;
 import tv.calmhome.launcher.ui.PulseLogo;
@@ -33,7 +34,7 @@ public class AboutPanel extends Panel {
         brand.setGravity(Gravity.CENTER);
         brand.addView(new PulseLogo(c, t.dp(54)));
         TextView powered = t.text(c, Theme.T_TAGLINE, Theme.HOLO_BLUE, Theme.FONT_REGULAR);
-        powered.setText("Powered by ZeroPulse AI");
+        powered.setText("Android TV launcher");
         powered.setLetterSpacing(0.08f);
         LinearLayout.LayoutParams pl = w.wrap();
         pl.topMargin = t.dp(16);
@@ -55,32 +56,49 @@ public class AboutPanel extends Panel {
         body.addView(card, cl);
 
         Rows rows = new Rows(c, t);
-        String version = "?";
-        long code = 0;
-        try {
-            PackageInfo pi = c.getPackageManager().getPackageInfo(c.getPackageName(), 0);
-            version = pi.versionName;
-            code = pi.getLongVersionCode();
-        } catch (Exception ignored) { }
+        // From the build, not PackageInfo.getLongVersionCode(): that needs Android 9 and crashed About on 8.x.
+        String version = BuildConfig.VERSION_NAME;
+        long code = BuildConfig.VERSION_CODE;
         WallpaperCatalog cat = host.stage().catalog();
-        int photos = 0, originals = 0;
+        int photos = 0, originals = 0, supplied = 0;
         for (WallpaperCatalog.Entry e : cat.all()) {
-            if (e.credit.startsWith("Photo: ")) photos++; else originals++;
+            if (e.credit.startsWith("Photo: ")) photos++;
+            else if (e.credit.startsWith("Supplied artwork")) supplied++;
+            else originals++;
         }
         add(rows.info("Launcher version", version + " (" + code + ")", Theme.SOFT_WHITE));
+        add(rows.action("What's new", "The changes in this version", false, v -> host.open(new WhatsNewPanel(host))));
         add(rows.info("Build number", BuildInfo.BUILD, Theme.SOFT_WHITE));
         add(rows.info("Source", BuildInfo.COMMIT, Theme.SOFT_WHITE));
         add(rows.info("Package ID", c.getPackageName(), Theme.SOFT_WHITE));
         add(rows.info("Device", Build.MANUFACTURER + " " + Build.MODEL + " (" + Build.PRODUCT + ")", Theme.SOFT_WHITE));
         add(rows.info("Android", Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")", Theme.SOFT_WHITE));
-        add(rows.info("Wallpaper pack", photos + " photos" + (originals > 0 ? " + " + originals + " ZeroPulse originals" : ""),
-                Theme.SOFT_WHITE));
+        add(rows.info("Wallpaper pack", (supplied > 0 ? supplied + " supplied glass wallpapers + " : "") + photos + " photos"
+                + (originals > 0 ? " + " + originals + " ZeroPulse originals" : ""), Theme.SOFT_WHITE));
         add(rows.info("Based on", "Calm Home 1.0", Theme.SOFT_WHITE));
 
-        section("Photo credits");
+        section("Home rendering");
+        if (t.liquid) {
+            add(rows.info("Home look", "Liquid Glass (" + (host.prefs().liquidGlassIsExplicit() ? "turned on" : "on by default") + ")", Theme.SOFT_WHITE));
+            add(rows.info("Glass renderer", "Shared graphite glass: header, clock, app tiles and buttons", Theme.SOFT_WHITE));
+            add(rows.info("Glass state", t.kit.isReady() ? "Wallpaper scene ready" : "Preparing the wallpaper scene", Theme.SOFT_WHITE));
+            add(rows.info("Glass surfaces", t.kit.renderedSurfaceCount() + " of " + t.kit.surfaceCount() + " tiles and buttons showing glass; "
+                    + t.kit.surfaceVariantCount() + " frost copies", Theme.SOFT_WHITE));
+            add(rows.info("Glass timing", GraphiteGlassRenderer.Stats.renders() + " renders, "
+                    + String.format(java.util.Locale.ROOT, "%.0f", GraphiteGlassRenderer.Stats.averageMillis()) + " ms average on this device",
+                    Theme.MUTED_GRAY));
+        } else {
+            add(rows.info("Home look", "Graphite (Liquid Glass is off)", Theme.SOFT_WHITE));
+        }
+
+        section("Wallpaper credits");
+        add(rows.action("Wallpaper information", "The wallpaper on screen: credit, licence, changes, framing", false,
+                v -> host.open(new WallpaperInfoPanel(host))));
         for (WallpaperCatalog.Entry e : cat.all()) add(rows.info(e.place, e.credit.replaceFirst("^Photo: ", ""), Theme.MUTED_GRAY));
         note("Photos from Wikimedia Commons Featured Pictures, cropped to 16:9. CC BY-SA licensed: "
-                + "creativecommons.org/licenses/by-sa/4.0 (and /3.0). Full source links: launcher/CREDITS.md.");
+                + "creativecommons.org/licenses/by-sa/4.0 (and /3.0). Full source links: launcher/CREDITS.md and the Wallpaper information screen. "
+                + "Liquid Glass Home shows no credit line over the wallpaper; every credit, licence and change is listed here and on the "
+                + "Wallpaper information screen (Wallpapers > Information). 'Supplied artwork' was supplied by the owner of this launcher.");
 
         section("Licenses");
         add(rows.info("ZeroPulse logo, icons, app", "Original work", Theme.MUTED_GRAY));
@@ -95,6 +113,7 @@ public class AboutPanel extends Panel {
     private void add(View row) {
         list.addView(row, Rows.full(t));
     }
+
 
     private void section(String s) {
         TextView v = sectionLabel(s);

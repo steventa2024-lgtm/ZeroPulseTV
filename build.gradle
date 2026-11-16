@@ -1,0 +1,5 @@
+// Pinned toolchain: AGP 9.4.1 (needs Gradle >= 9.6.0, JDK 17, Build-Tools 36.0.0). Versions are never dynamic;
+// every resolved artifact is checked against gradle/verification-metadata.xml.
+plugins {
+    id 'com.android.application' version '9.4.1' apply false
+}

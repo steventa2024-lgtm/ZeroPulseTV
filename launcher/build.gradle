@@ -1,0 +1,119 @@
+// ZeroPulse TV launcher. Sources keep the 2.1 layout (src/, res/, assets/, AndroidManifest.xml).
+//
+// Release signing uses YOUR key, given through the environment (never stored in this repository):
+//   ZP_KEYSTORE        path to the keystore
+//   ZP_KEYSTORE_PASS   keystore and key password
+//   ZP_KEY_ALIAS       key alias
+// Without them, assembleRelease produces an unsigned APK. An APK signed with any other key cannot update an
+// installation of the official release: Android only accepts updates signed with the same key.
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = 'tv.calmhome.launcher'
+    compileSdk = 36
+
+    defaultConfig {
+        // Unchanged since Calm Home 1.0: the TV's Home setting and the saved dock belong to this ID.
+        applicationId = 'tv.calmhome.launcher'
+        minSdk = 26
+        targetSdk = 34
+        // In-place update from the owner's 2.2 development build (2201).
+        versionCode = 3006
+        // Same versionCode as the installed 3006 on purpose: the 3006 APK and the 3007 recovery APK can both still be installed over this
+        // build (a lower versionCode is refused), so going back stays possible. The name and build id tell this build apart.
+        // 3.0.0-beta.8-zpapps: Integrated ZPAPPS Toolbox natively with ZeroPulse Liquid Glass surfaces.
+        versionName = '3.0.0-beta.8-zpapps'
+        buildConfigField 'String', 'ZP_COMMIT', '"fcde516+ui-refine+zpapps-native"'
+        buildConfigField 'String', 'ZP_BUILD', '"3006-zpapps"'
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+        }
+        test {
+            java.srcDirs = ['test', '../qa/robolectric']
+            resources.srcDirs = ['test-resources']
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    signingConfigs {
+        release {
+            if (System.getenv('ZP_KEYSTORE')) {
+                storeFile = file(System.getenv('ZP_KEYSTORE'))
+                storePassword = System.getenv('ZP_KEYSTORE_PASS')
+                keyAlias = System.getenv('ZP_KEY_ALIAS')
+                keyPassword = System.getenv('ZP_KEYSTORE_PASS')
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (System.getenv('ZP_KEYSTORE')) signingConfig = signingConfigs.release
+        }
+    }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+        // Play Store rule; this APK is sideloaded. The private profile matches the public TV Android 14 behavior target.
+        disable += ['ExpiredTargetSdkVersion']
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // Same bar as 2.1's javac -Xlint:all pass, now enforced: any warning fails the build.
+    options.compilerArgs += ['-Xlint:all,-options,-serial,-classfile,-processing', '-Werror']
+}
+
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+configurations.configureEach {
+    // Kotlin 1.8 folded kotlin-stdlib-jdk7 and -jdk8 into kotlin-stdlib. A Google library still asks for 1.6.0 of them,
+    // which would put the same classes on the class path twice and fail the duplicate-class check.
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+}
+
+dependencies {
+    // AndroidX Media3 (Apache-2.0). No UI, IMA/ads, cast, session or Kotlin modules.
+    implementation 'androidx.media3:media3-exoplayer:1.11.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.11.1'
+    implementation 'androidx.media3:media3-exoplayer-dash:1.11.1'
+    // Media3 declares this as runtime-only; javac needs its annotation classes (RestrictTo, OptIn) to compile cleanly.
+    compileOnly 'androidx.annotation:annotation:1.6.0'
+
+    // (3.0.0-beta.7) zxing, NanoHTTPD, Jetpack Security and Google Sign-In were used only by the AI accounts of the removed
+    // Assistant and are gone with it.
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.17'
+}

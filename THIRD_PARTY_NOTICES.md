@@ -14,9 +14,7 @@ Fonts: the app uses the TV's system fonts (Roboto on Android TV); no font files 
 
 ### OpenPulse (separate project, not bundled)
 
-The optional JARVIS feature talks to [OpenPulse](https://github.com/steventa2024-lgtm/openpulse), a
-separate project under the MIT License, running on the user's own PC. No OpenPulse code is included in
-ZeroPulse TV; the TV implements the TV-link protocol independently (`launcher/src/tv/calmhome/launcher/jarvis/`).
+Earlier builds included an optional JARVIS client for OpenPulse; it was removed in 3.0.0-beta.7.
 
 ## Wallpaper photographs
 
@@ -51,3 +49,4 @@ Android, Android TV, Google TV, YouTube and Google Play are trademarks of Google
 TCL. Netflix, Prime Video, Disney+, Hulu and other app names and logos shown in the app or in screenshots
 belong to their owners; the launcher displays the names and banners that installed apps provide and is not
 affiliated with or endorsed by any of them.
+

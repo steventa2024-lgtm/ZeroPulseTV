@@ -58,7 +58,7 @@ async function copyText(text, status) {
 fetch('claude-install-prompt.txt', { cache: 'no-cache' }).then(async response => {
   if (!response.ok) throw new Error('Prompt not available');
   const text = await response.text();
-  if (!text.startsWith('Install the official ZeroPulse TV 2.1 public beta') || !text.includes('ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401')) throw new Error('Unexpected prompt content');
+  if (!text.startsWith('Install the official ZeroPulse TV 3.0.0-beta.8-zpapps release') || !text.includes('c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7')) throw new Error('Unexpected prompt content');
   promptText = text;
   $('#prompt-text').value = promptText;
   $('#copy-prompt').disabled = false;

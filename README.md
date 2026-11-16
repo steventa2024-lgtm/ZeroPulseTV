@@ -31,9 +31,7 @@
 
 | Your apps | Your atmosphere | Your remote |
 | --- | --- | --- |
-| Pin, reorder and remove favourites from the dock. Removing a tile never uninstalls an app. | Nine credited nature photographs and three original artworks, bundled for offline use. | D-pad navigation, visible focus and quick controls for Apps, Inputs, Assistant, Wallpapers and Settings. |
-
-The local Assistant also accepts typed TV commands such as “open YouTube” or “show inputs”. **JARVIS AI chat is optional and experimental; public pairing is not available yet.** [What is available today →](#jarvis-what-is-and-isnt-available)
+| Pin, reorder and remove favourites from the dock. Removing a tile never uninstalls an app. | Nine credited nature photographs and three original artworks, bundled for offline use. | D-pad navigation, visible focus and quick controls for Apps, Downloads, Inputs, Wallpapers and Settings. |
 
 Installing the APK adds a launcher. It **does not automatically debloat your TV**, remove ads inside streaming apps, include streaming subscriptions, or change your default Home app.
 
@@ -86,18 +84,10 @@ After maintenance, disable debugging on the TV. `adb disconnect` alone does not 
 <table>
 <tr><td width="50%"><img src="docs/screenshots/02-all-apps.png" alt="Real All Apps screen"><br><strong>All Apps</strong> — your installed TV apps.</td><td width="50%"><img src="docs/screenshots/03-inputs.png" alt="Real Inputs screen"><br><strong>Inputs</strong> — options reported by your device.</td></tr>
 <tr><td><img src="docs/screenshots/04-wallpapers.png" alt="Real Wallpapers screen"><br><strong>Wallpapers</strong> — choose your scene and rotation.</td><td><img src="docs/screenshots/05-settings.png" alt="Real launcher Settings screen"><br><strong>Settings</strong> — appearance and launcher preferences.</td></tr>
-<tr><td><img src="docs/screenshots/07-assistant-local-mode.png" alt="Real local Assistant screen"><br><strong>Local Assistant</strong> — typed TV commands, no PC needed.</td><td><img src="docs/screenshots/06-about.png" alt="Real About and credits screen"><br><strong>About</strong> — version information and credits.</td></tr>
+<tr><td><img src="docs/screenshots/06-about.png" alt="Real About and credits screen"><br><strong>About</strong> — version information and credits.</td><td></td></tr>
 </table>
 
 These are existing captures from the real TCL, not a compatibility demonstration for other models. Photo credits remain visible; see [third-party notices](THIRD_PARTY_NOTICES.md) for wallpaper attribution and licensing.
-
-## JARVIS: what is and isn’t available
-
-The TV-side experimental AI interface is included. Its compatible **OpenPulse TV link is not yet publicly released**, so public users cannot pair JARVIS today. It stays **Not paired**. The maintainer’s connected tests used a private gateway; they are not an available hosted service.
-
-When the compatible gateway becomes public, the design uses the user’s own PC, explicit approval and certificate-pinned TLS. TV chat has no tools for executing PC commands or accessing PC files. Proposed TV actions require confirmation. No shared AI server or language model is bundled.
-
-**Voice is not implemented in 2.1.** The core Home, wallpapers, apps, supported inputs and local typed commands work without JARVIS. [Protocol and availability details →](docs/JARVIS.md)
 
 <details>
 <summary><strong>Verify download &amp; technical details</strong></summary>

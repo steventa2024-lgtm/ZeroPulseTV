@@ -12,7 +12,8 @@ import android.graphics.drawable.Drawable;
 /** Original ZeroPulse line icons, drawn on a 24-unit grid with a 1.8-unit stroke. */
 public class Glyph extends Drawable {
 
-    public enum Kind { GRID, INPUTS, TV, HDMI, ASSISTANT, IMAGE, GEAR, INFO, HOME, PLAY, DOCK, SHORTCUT }
+    public enum Kind { GRID, INPUTS, TV, HDMI, IMAGE, GEAR, INFO, HOME, PLAY, DOCK, SHORTCUT, DOWNLOAD, SPORTS, CINEMA, TORII,
+        APPS, GAMES, LAYERS, LINK, ARROW, FOLDER, APK, PLUS, GLOBE }
 
     private final Kind kind;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -42,6 +43,75 @@ public class Glyph extends Drawable {
         p.setStrokeWidth(1.8f);
         path.reset();
         switch (kind) {
+            case APPS:
+                c.drawLine(6, 19, 14, 4, p);
+                c.drawLine(10, 4, 18, 19, p);
+                c.drawLine(3, 15, 14, 15, p);
+                c.drawLine(17, 15, 21, 15, p);
+                break;
+            case GAMES:
+                path.moveTo(7, 7); path.quadTo(3.5f, 7, 2.5f, 16);
+                path.quadTo(2, 20, 5.5f, 17.5f); path.lineTo(8.5f, 15);
+                path.lineTo(15.5f, 15); path.lineTo(18.5f, 17.5f);
+                path.quadTo(22, 20, 21.5f, 16); path.quadTo(20.5f, 7, 17, 7);
+                path.close(); c.drawPath(path, p);
+                c.drawLine(6, 11, 10, 11, p); c.drawLine(8, 9, 8, 13, p);
+                c.drawCircle(16, 10, .55f, p); c.drawCircle(18, 12, .55f, p);
+                break;
+            case LAYERS:
+                path.moveTo(2, 8); path.lineTo(12, 3); path.lineTo(22, 8); path.lineTo(12, 13); path.close();
+                path.moveTo(2, 12); path.lineTo(12, 17); path.lineTo(22, 12);
+                path.moveTo(2, 16); path.lineTo(12, 21); path.lineTo(22, 16);
+                c.drawPath(path, p);
+                break;
+            case LINK:
+                r.set(2, 8, 13, 16); c.save(); c.rotate(-45, 7.5f, 12); c.drawRoundRect(r, 4, 4, p); c.restore();
+                r.set(11, 5, 22, 13); c.save(); c.rotate(-45, 16.5f, 9); c.drawRoundRect(r, 4, 4, p); c.restore();
+                c.drawLine(9, 14, 15, 8, p);
+                break;
+            case ARROW:
+                path.moveTo(4, 12); path.lineTo(19, 12); path.moveTo(13, 6); path.lineTo(19, 12); path.lineTo(13, 18);
+                c.drawPath(path, p); break;
+            case FOLDER:
+                path.moveTo(3, 7); path.lineTo(9, 7); path.lineTo(11, 9); path.lineTo(21, 9);
+                path.lineTo(21, 19); path.lineTo(3, 19); path.close(); c.drawPath(path, p); break;
+            case APK:
+                path.moveTo(6, 2); path.lineTo(14, 2); path.lineTo(19, 7); path.lineTo(19, 22);
+                path.lineTo(6, 22); path.close(); path.moveTo(14, 2); path.lineTo(14, 7); path.lineTo(19, 7);
+                path.moveTo(9, 13); path.lineTo(16, 13); path.moveTo(9, 16); path.lineTo(14, 16);
+                c.drawPath(path, p); break;
+            case PLUS:
+                c.drawLine(4, 12, 20, 12, p); c.drawLine(12, 4, 12, 20, p); break;
+            case DOWNLOAD:
+                path.moveTo(12, 3); path.lineTo(12, 15); path.lineTo(7, 10);
+                path.moveTo(12, 15); path.lineTo(17, 10);
+                path.moveTo(4, 15); path.lineTo(4, 20); path.lineTo(20, 20); path.lineTo(20, 15);
+                c.drawPath(path, p);
+                break;
+            case SPORTS:
+                c.drawCircle(12, 12, 9, p);
+                path.moveTo(12, 7); path.lineTo(17, 10); path.lineTo(15, 15);
+                path.lineTo(9, 15); path.lineTo(7, 10); path.close();
+                path.moveTo(12, 7); path.lineTo(12, 3); path.moveTo(17, 10); path.lineTo(21, 9);
+                path.moveTo(15, 15); path.lineTo(18, 19); path.moveTo(9, 15); path.lineTo(6, 19);
+                path.moveTo(7, 10); path.lineTo(3, 9); c.drawPath(path, p);
+                break;
+            case CINEMA:
+                r.set(3, 9, 21, 20); c.drawRoundRect(r, 2, 2, p);
+                path.moveTo(3, 9); path.lineTo(3, 6); path.lineTo(20, 3); path.lineTo(21, 6); path.close();
+                path.moveTo(12, 12); path.lineTo(16, 14.5f); path.lineTo(12, 17); path.close(); c.drawPath(path, p);
+                break;
+            case TORII:
+                path.moveTo(2, 5); path.quadTo(12, 8, 22, 5);
+                path.moveTo(4, 10); path.lineTo(20, 10); path.moveTo(7, 6); path.lineTo(6, 21);
+                path.moveTo(17, 6); path.lineTo(18, 21); c.drawPath(path, p);
+                break;
+            case GLOBE:
+                c.drawCircle(12, 12, 8.5f, p);
+                r.set(8.2f, 3.5f, 15.8f, 20.5f);
+                c.drawOval(r, p);
+                c.drawLine(3.5f, 12, 20.5f, 12, p);
+                break;
             case GRID:
                 for (int i = 0; i < 4; i++) {
                     float x = 4 + (i % 2) * 9, y = 4 + (i / 2) * 9;
@@ -67,13 +137,6 @@ public class Glyph extends Drawable {
                 path.lineTo(4, 13); path.close();
                 c.drawPath(path, p);
                 c.drawLine(8, 12.5f, 16, 12.5f, p);
-                break;
-            case ASSISTANT:
-                c.drawCircle(12, 12, 8.5f, p);
-                c.drawCircle(12, 12, 4.2f, p);
-                p.setStyle(Paint.Style.FILL);
-                c.drawCircle(12, 12, 1.6f, p);
-                p.setStyle(Paint.Style.STROKE);
                 break;
             case IMAGE:
                 r.set(3, 5, 21, 19);

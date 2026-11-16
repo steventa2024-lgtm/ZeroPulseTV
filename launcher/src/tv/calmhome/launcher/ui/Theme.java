@@ -3,12 +3,14 @@ package tv.calmhome.launcher.ui;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.widget.TextView;
 
+import tv.calmhome.launcher.core.LiquidTokens;
 import tv.calmhome.launcher.data.Prefs;
 
 /**
@@ -19,15 +21,15 @@ import tv.calmhome.launcher.data.Prefs;
 public final class Theme {
 
     // ---- Brand colors
-    public static final int DEEP_BLACK = 0xFF06090D;
-    public static final int MIDNIGHT_NAVY = 0xFF0A1220;
-    public static final int PANEL_NAVY = 0xFF101A2B;
-    public static final int ELECTRIC_BLUE = 0xFF2F80FF;
-    public static final int PULSE_CYAN = 0xFF35D6FF;
-    public static final int HOLO_BLUE = 0xFF5AA9FF;
-    public static final int SOFT_WHITE = 0xFFF3F7FF;
-    public static final int MUTED_GRAY = 0xFF94A3B8;
-    public static final int BORDER = 0xFF22324A;
+    public static final int DEEP_BLACK = 0xFF0B0E12;
+    public static final int MIDNIGHT_NAVY = 0xFF151A20;
+    public static final int PANEL_NAVY = 0xFF252B32;
+    public static final int ELECTRIC_BLUE = 0xFFF1F2F4;
+    public static final int PULSE_CYAN = 0xFFF6F7F8;
+    public static final int HOLO_BLUE = 0xFFCED2D7;
+    public static final int SOFT_WHITE = 0xFFF6F7F8;
+    public static final int MUTED_GRAY = 0xFFBEC5CD;
+    public static final int BORDER = 0xFF797E85;
     public static final int SUCCESS = 0xFF28C76F;
     public static final int WARNING = 0xFFF5A623;
     public static final int ERROR = 0xFFFF5C7A;
@@ -49,20 +51,47 @@ public final class Theme {
     public final float glowDp;         // translationZ on focus (drives the blue spot shadow)
     public final float accent;         // 0..1 strength of blue accents on non-focused chrome
     public final boolean reducedMotion;
+    /** True for the optional Liquid Glass look (Home and its panels): clear glass over the photo wallpaper. */
+    public final boolean liquid;
+    /** The frosted backdrop glass panels draw a window of; null unless {@link #liquid}. */
+    public final LiquidBackdrop backdrop;
+    /** The backdrop for the supplied glass clock and navigation; null unless {@link #liquid}. */
+    public final GlassKit kit;
+    /** Liquid Glass focus: tile scale (1.03 / 1.05 / 1.07x) and lift (8 / 10 / 12 dp) by the focus-emphasis setting. */
+    public final float liquidScale, liquidLiftDp;
 
     public Theme(Context c, Prefs p) {
+        this(c, p, false);
+    }
+
+    public Theme(Context c, Prefs p, boolean liquid) {
         dm = c.getResources().getDisplayMetrics();
+        this.liquid = liquid;
+        this.backdrop = liquid ? new LiquidBackdrop(dm.widthPixels, dm.heightPixels) : null;
+        this.kit = liquid ? new GlassKit(dm.widthPixels, dm.heightPixels, dm.density) : null;
         scale = p.uiScale();
         int intensity = p.focusIntensity();             // 0 low, 1 medium, 2 high
-        focusScale = new float[]{1.04f, 1.06f, 1.08f}[intensity];
-        glowDp = new float[]{6f, 12f, 18f}[intensity];
+        focusScale = new float[]{1.015f, 1.025f, 1.035f}[intensity];
+        glowDp = new float[]{1f, 1.5f, 2f}[intensity];
+        liquidScale = new float[]{LiquidTokens.FOCUS_SCALE - 0.02f, LiquidTokens.FOCUS_SCALE, LiquidTokens.FOCUS_SCALE + 0.02f}[intensity];
+        liquidLiftDp = new float[]{LiquidTokens.ELEVATION_LOW_DP, (LiquidTokens.ELEVATION_LOW_DP + LiquidTokens.ELEVATION_HIGH_DP) / 2f,
+                LiquidTokens.ELEVATION_HIGH_DP}[intensity];
         accent = new float[]{0.55f, 0.8f, 1f}[p.accentIntensity()];
         float systemAnim = Settings.Global.getFloat(c.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f);
         reducedMotion = p.reducedMotion() || systemAnim == 0f;
+        focusGlow = p.focusGlow();
     }
+
+    /** The focused tile's brand glow and lift shadow (Settings > Appearance > Focus glow). */
+    public final boolean focusGlow;
 
     public int dp(float v) {
         return Math.round(v * dm.density * scale);
+    }
+
+    /** Pixels per dp including the user's UI scale (as {@link #dp} uses), unrounded. */
+    public float pxPerDp() {
+        return dm.density * scale;
     }
 
     /** Raw dp without the user scale (screen geometry). */
@@ -93,7 +122,7 @@ public final class Theme {
     }
 
     public int fadeMs(int normal) {
-        return reducedMotion ? Math.min(normal, 250) : normal;
+        return reducedMotion ? 0 : normal;
     }
 
     public TextView text(Context c, float sp, int color, String family) {
@@ -127,9 +156,35 @@ public final class Theme {
         return g;
     }
 
-    /** Glass panel used over wallpapers: translucent Panel Navy with a hairline border. */
-    public GradientDrawable glass(float radiusDp, float opacity) {
-        return outlined(withAlpha(PANEL_NAVY, opacity), withAlpha(BORDER, 0.9f), 1, radiusDp);
+    /** Liquid Glass only: the ultra-clear navigation capsule. */
+    public Drawable liquidCapsule(float radiusDp) {
+        return LiquidGlass.all(LiquidSpec.navCapsule(), backdrop, pxPerDp(), radiusDp);
+    }
+
+    /** Liquid Glass only: the back and front parts of a surface, so a card's content can sit between them. */
+    LiquidGlass[] liquidLayers(LiquidSpec spec, float radiusDp) {
+        return LiquidGlass.layers(spec, backdrop, pxPerDp(), radiusDp);
+    }
+
+    /** Pearl reflection, neutral graphite body and a thin silver rim (clear glass in Liquid Glass). */
+    public Drawable glass(float radiusDp, float opacity) {
+        // Liquid Glass panes are quiet graphite with one hairline rim; their controls are the approved glass (see ZeroPulseGlassRow).
+        if (liquid) return new PaneGlass(dp(radiusDp), Math.max(1f, dp(0.5f)), opacity);
+        return new GlassSurface(new int[]{withAlpha(0xFF71767D, opacity), withAlpha(0xFF40464D, opacity * .80f),
+                withAlpha(0xFF282C32, opacity * .90f), withAlpha(0xFF42464C, opacity)}, dp(radiusDp), Math.max(1, dp(1)));
+    }
+
+    public Drawable raised(float radiusDp, boolean focused) {
+        if (liquid) {
+            LiquidGlass bead = LiquidGlass.all(LiquidSpec.navBead(), backdrop, pxPerDp(), radiusDp);
+            bead.setFocusLevel(focused ? 1f : 0.9f);
+            return bead;
+        }
+        GradientDrawable surface = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                focused ? new int[]{0xFFF3F4F5, 0xFFC8CBD0, 0xFFABB0B7} : new int[]{0xFF868B92, 0xFF52575F, 0xFF696E75});
+        surface.setCornerRadius(dp(radiusDp));
+        surface.setStroke(Math.max(1, dp(focused ? 2 : 1)), focused ? SOFT_WHITE : 0xEEDEE0E3);
+        return surface;
     }
 
     public int accentBlue(float base) {

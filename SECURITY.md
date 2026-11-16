@@ -28,29 +28,13 @@ changing it would turn every update into a separate app and lose users' settings
 
 ## What the app can and cannot do
 
-- Permissions: `INTERNET` only. No storage, location, microphone, camera, contacts or accessibility access.
-- It launches apps and switches inputs through public Android APIs. It does not install, uninstall, disable
-  or modify other apps or system settings.
-- It makes **no network connections** except the optional JARVIS link, and only while the Assistant screen is
-  open, to the IPv4 address you entered when pairing.
-- Cleartext network traffic is disabled in the manifest; the JARVIS client only speaks TLS 1.3.
+There is no assistant, voice input or spoken output (they were removed in 3.0.0-beta.7), and the app never requests `RECORD_AUDIO`.
+
+- The private v3 beta requests `INTERNET`, `ACCESS_NETWORK_STATE` for Android 14 download job network constraints, `RECEIVE_BOOT_COMPLETED` for persisted jobs, and `REQUEST_INSTALL_PACKAGES` for the system installer. Public v2.1 requests only `INTERNET`.
+- The TV can launch apps, switch inputs, and stage an inspected APK when the owner selects Install. Android controls permission to install from this source and prompts for installation.
+- Network traffic originates from an explicit APK download or the optional Streaming and Web modules. Home and its wallpaper rotation work offline.
+- Cleartext network traffic is disabled in the manifest, and no code in this build speaks plain HTTP.
 - App data is excluded from Android cloud backup and device-to-device transfer.
-
-## JARVIS link security model
-
-Details: [docs/JARVIS.md](docs/JARVIS.md).
-
-- **PC identity**: self-signed certificate on the PC, pinned on the TV by SHA-256. The fingerprint is not
-  trusted because it arrived over the network: the one-time pairing code shown on the PC contains a check
-  value that the TV verifies against the certificate during the TLS handshake, before sending anything.
-- **TV identity**: an ECDSA P-256 key generated in Android Keystore (not exportable) signs every connection.
-- **Authorisation**: the gateway owner approves the TV on the PC. The TV gets a device token (stored
-  AES-GCM-encrypted with a Keystore key) that only works on the TV link, whose method set is limited to
-  status, the TV's own conversation, and unpairing. TV conversations run without tools on the PC.
-- **Revocation**: from the PC (`openpulse devices remove`) or the TV (*Forget this PC*); the TV then deletes
-  its key, token and pin.
-- **Not covered**: anyone who can approve devices on your PC, or who controls your PC, controls what the TV is
-  told. Keep OpenPulse's owner token private and restrict the TV link to your TV's address.
 
 ## Building your own copy
 

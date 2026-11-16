@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.0.0-beta.7-ui1 — glass everywhere, Favorites carousel, Assistant removed (versionCode 3006, private build)
+
+### Removed
+- The Assistant (JARVIS) completely: its screen, Home quick action, navigation destination, Settings category, voice input and spoken
+  replies, the JARVIS PC link, AI Accounts (Claude/Codex/Gemini sign-ins, phone sign-in page, companion bridge) and the code, tests,
+  libraries (zxing, NanoHTTPD, Jetpack Security, Google Sign-In) and docs that only it used. Not a hidden switch: the code is gone.
+- On the first start after the update, `LegacyAssistantCleanup` deletes exactly what the Assistant stored (its five preference files,
+  three Keystore keys and two settings) once; favorites, settings, wallpapers, downloads and module data are untouched.
+- Old links to the Assistant (`zp_open=assistant`, `settings:assistant`, a "Assistant" destination) open Home or Settings instead.
+
+### Changed
+- Navigation: five destinations (Home, Apps, Downloads, Inputs, Settings), spread across the same rail. Home's quick actions: four
+  (All Apps, Downloads, Wallpapers, Inputs), evenly across the same row. The rest of Home is unchanged.
+- Apps, Downloads, Inputs, Settings switches, dialogs and menus now use the approved glass renderer (ZeroPulseGlassRow / GraphiteGlassSurface);
+  heavy white focus rings are gone from the remaining classic controls.
+- Favorites carousel: the row glides (220 ms, eased, retargeted on rapid presses) only when the focused tile would leave the safe margin.
+- Changing destination keeps the header still (the previous header stays until the new one's glass is ready); content fades in.
+- Downloads: glass progress bar easing between real values, speed from real samples, a moment showing how a download ended.
+- All Apps: System view (only when the TV has system apps), Favorites in Home's order, Open / Favorites / App info / Uninstall menu;
+  the grid no longer scrolls over the title and search field.
+
 ## v2.1.0-beta.1 — first public beta (versionCode 21, "2.1")
 
 First public release. Builds on two private versions (Calm Home 1.0 and ZeroPulse TV 2.0) used on one TV.

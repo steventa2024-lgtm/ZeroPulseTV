@@ -7,9 +7,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import tv.calmhome.launcher.core.CommandParser;
-import tv.calmhome.launcher.core.CommandParser.Kind;
-import tv.calmhome.launcher.core.CommandParser.Named;
 import tv.calmhome.launcher.core.DockList;
 import tv.calmhome.launcher.core.Greeting;
 import tv.calmhome.launcher.core.WallpaperCatalog;
@@ -33,12 +30,24 @@ public class CoreTests {
 
     public static void main(String[] args) throws Exception {
         dock();
+        appLibrary();
         greeting();
         catalog(args.length > 0 ? args[0] : null);
-        commands();
         System.out.println();
         System.out.println(passed + " passed, " + failed + " failed");
         System.exit(failed == 0 ? 0 : 1);
+    }
+
+    static void appLibrary() {
+        List<String> previous = Arrays.asList("a", "b", "c", "d", "e", "f");
+        eq("recent: successful repeat moves to front", Arrays.asList("c", "a", "b", "d", "e", "f"),
+                tv.calmhome.launcher.core.AppLibrary.record(previous, "c"));
+        eq("recent: new launch bounded to six", Arrays.asList("g", "a", "b", "c", "d", "e"),
+                tv.calmhome.launcher.core.AppLibrary.record(previous, "g"));
+        eq("recent: source order remains intact", "a", previous.get(0));
+        check("library: case-insensitive label search", tv.calmhome.launcher.core.AppLibrary.matches(" TUB ", "YouTube", "com.video"));
+        check("library: package matches", tv.calmhome.launcher.core.AppLibrary.matches("com.video", "Video", "com.video.tv"));
+        check("library: unknown search filters out", !tv.calmhome.launcher.core.AppLibrary.matches("other", "Video", "com.video.tv"));
     }
 
     static void dock() {
@@ -109,32 +118,10 @@ public class CoreTests {
                     (long) real.all().size());
             boolean credited = true;
             for (WallpaperCatalog.Entry e : real.all()) {
-                credited &= e.credit.startsWith("Photo: ") || e.credit.startsWith("Original artwork");
+                credited &= e.credit.startsWith("Photo: ") || e.credit.startsWith("Original artwork") || e.credit.startsWith("Supplied artwork");
                 credited &= Files.exists(Paths.get(tsvPath).getParent().resolve(e.file));
             }
             check("bundled: every wallpaper has a credit and its file exists", credited);
         }
-    }
-
-    static void commands() {
-        List<Named> apps = Arrays.asList(new Named("com.netflix.ninja", "Netflix"),
-                new Named("com.google.android.youtube.tv", "YouTube"),
-                new Named("com.google.android.youtube.tvunplugged", "YouTube TV"),
-                new Named("com.disney.disneyplus", "Disney+"));
-        List<Named> inputs = Arrays.asList(new Named("hdmi1", "HDMI 1"), new Named("hdmi2", "HDMI 2"),
-                new Named("tuner", "Antenna TV"));
-        eq("cmd: open netflix", "com.netflix.ninja", CommandParser.parse("Open Netflix", apps, inputs).target);
-        eq("cmd: bare app name", "com.netflix.ninja", CommandParser.parse("netflix", apps, inputs).target);
-        eq("cmd: exact beats prefix (youtube)", "com.google.android.youtube.tv", CommandParser.parse("youtube", apps, inputs).target);
-        eq("cmd: youtube tv", "com.google.android.youtube.tvunplugged", CommandParser.parse("launch YouTube TV", apps, inputs).target);
-        eq("cmd: disney plus symbol", "com.disney.disneyplus", CommandParser.parse("open disney+", apps, inputs).target);
-        eq("cmd: switch to hdmi 2", "hdmi2", CommandParser.parse("switch to HDMI 2", apps, inputs).target);
-        eq("cmd: antenna", Kind.SWITCH_INPUT, CommandParser.parse("antenna", apps, inputs).kind);
-        eq("cmd: home", Kind.HOME, CommandParser.parse("go home", apps, inputs).kind);
-        eq("cmd: all apps", Kind.ALL_APPS, CommandParser.parse("All Apps", apps, inputs).kind);
-        eq("cmd: please is ignored", Kind.SETTINGS, CommandParser.parse("settings please", apps, inputs).kind);
-        eq("cmd: not installed app is UNKNOWN", Kind.UNKNOWN, CommandParser.parse("open plex", apps, inputs).kind);
-        eq("cmd: 2-letter fragment does not match", Kind.UNKNOWN, CommandParser.parse("ne", apps, inputs).kind);
-        eq("cmd: empty is UNKNOWN", Kind.UNKNOWN, CommandParser.parse("   ", apps, inputs).kind);
     }
 }

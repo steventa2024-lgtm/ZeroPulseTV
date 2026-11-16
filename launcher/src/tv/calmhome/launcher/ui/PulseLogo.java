@@ -10,7 +10,7 @@ import android.view.View;
 
 /**
  * ZeroPulse "Wordmark + Pulse" logo, drawn as vectors so it is crisp at any size:
- * a blue ECG-style pulse line, "ZeroPulse" in Soft White and a suffix ("TV") in Electric Blue.
+ * the original ECG-style pulse, pearl wordmark and silver suffix.
  * The same geometry is used for the SVG masters in branding/.
  */
 public class PulseLogo extends View {
@@ -24,26 +24,33 @@ public class PulseLogo extends View {
     private final Paint suffixPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** The outer halo of the luminous treatment: a wide, very faint stroke under the nearer glow. */
+    private final Paint halo = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF markBox = new RectF();
+    private final Paint.FontMetrics metrics = new Paint.FontMetrics();
     private String name = "ZeroPulse", suffix = "TV";
     private float heightPx;
     private boolean glowOn = true;
+    private boolean luminous;
+
+    /** Measured on the approved concept (see {@link #luminous()}). */
+    static final int LUMINOUS_CORE = 0xFFDBFDFF, LUMINOUS_HALO = 0xFF5EC8FF, LUMINOUS_WORD = 0xFFCCF3FF, LUMINOUS_TV = 0xFF6FB2E4;
 
     public PulseLogo(Context c, float heightPx) {
         super(c);
         this.heightPx = heightPx;
         word.setColor(Theme.SOFT_WHITE);
         word.setTypeface(Typeface.create(Theme.FONT_MEDIUM, Typeface.NORMAL));
-        suffixPaint.setColor(Theme.ELECTRIC_BLUE);
+        suffixPaint.setColor(Theme.SOFT_WHITE);
         suffixPaint.setTypeface(Typeface.create(Theme.FONT_MEDIUM, Typeface.NORMAL));
-        for (Paint p : new Paint[]{line, glow}) {
+        for (Paint p : new Paint[]{line, glow, halo}) {
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeCap(Paint.Cap.ROUND);
             p.setStrokeJoin(Paint.Join.ROUND);
         }
-        line.setColor(Theme.ELECTRIC_BLUE);
-        glow.setColor(Theme.withAlpha(Theme.PULSE_CYAN, 0.28f));
+        line.setColor(Theme.PULSE_CYAN);
+        glow.setColor(Theme.withAlpha(Theme.PULSE_CYAN, 0.16f));
         applySize();
     }
 
@@ -68,6 +75,26 @@ public class PulseLogo extends View {
         return this;
     }
 
+    /**
+     * The luminous treatment of the approved TV concept, for Liquid Glass's header: the same pulse (the branding master's own
+     * geometry, nothing redrawn, no badge) with a white-cyan core and a soft cyan halo, "ZeroPulse" in ice white and "TV" in a
+     * clear blue. Measured on the concept: core (219, 253, 255), wordmark (204, 243, 255), "TV" (111, 178, 228).
+     */
+    public PulseLogo luminous() {
+        luminous = true;
+        line.setColor(LUMINOUS_CORE);
+        glow.setColor(LUMINOUS_HALO);
+        halo.setColor(LUMINOUS_HALO);
+        word.setColor(LUMINOUS_WORD);
+        suffixPaint.setColor(LUMINOUS_TV);
+        applySize();
+        return this;
+    }
+
+    public boolean isLuminous() {
+        return luminous;
+    }
+
     private void applySize() {
         float text = heightPx * 0.62f;
         word.setTextSize(text);
@@ -75,7 +102,10 @@ public class PulseLogo extends View {
         word.setLetterSpacing(0.01f);
         suffixPaint.setLetterSpacing(0.04f);
         line.setStrokeWidth(Math.max(1.5f, heightPx * 0.075f));
-        glow.setStrokeWidth(Math.max(3f, heightPx * 0.24f));
+        glow.setStrokeWidth(Math.max(3f, luminous ? heightPx * 0.14f : heightPx * 0.16f));
+        halo.setStrokeWidth(Math.max(5f, heightPx * 0.30f));
+        glow.setAlpha(luminous ? 0x52 : glow.getAlpha());
+        halo.setAlpha(0x1C);
         requestLayout();
         invalidate();
     }
@@ -101,12 +131,15 @@ public class PulseLogo extends View {
         float pad = h * 0.1f;
         markBox.set(pad, h * 0.18f, pad + markWidth(), h * 0.82f);
         buildPulse(path, markBox);
-        if (glowOn) c.drawPath(path, glow);
+        if (glowOn) {
+            if (luminous) c.drawPath(path, halo);
+            c.drawPath(path, glow);
+        }
         c.drawPath(path, line);
         if (name.isEmpty()) return;
 
-        Paint.FontMetrics fm = word.getFontMetrics();
-        float baseline = h / 2f - (fm.ascent + fm.descent) / 2f;
+        word.getFontMetrics(metrics);
+        float baseline = h / 2f - (metrics.ascent + metrics.descent) / 2f;
         float x = markBox.right + gap();
         c.drawText(name, x, baseline, word);
         if (!suffix.isEmpty()) {

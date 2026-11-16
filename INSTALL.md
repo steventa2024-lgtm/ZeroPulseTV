@@ -52,7 +52,7 @@ manager on the TV and allow **Install unknown apps** for that file manager when 
 ZeroPulse TV appears in your apps list like any other app. On first start it:
 - shows the dock with whichever of these apps are installed: Netflix, Prime Video, Disney+, Hulu, YouTube,
   YouTube TV, YouTube Music (or an **Add apps** tile if none are);
-- starts with JARVIS **not paired** and makes no network connections;
+- makes no network connections until you start a download;
 - needs no account, no PC and no internet connection.
 
 Add or remove dock apps: **All Apps**, long-press OK on an app → *Add to dock*; long-press a dock app →
@@ -103,19 +103,14 @@ reset is never needed for this.
 
 ## 6. Updates and rollback
 
-- **Update**: install a newer release over the old one (`adb install -r <new>.apk`). Your dock, settings and
-  JARVIS pairing are kept. Releases are signed with the same key; Android refuses an update signed with a
+- **Update**: install a newer release over the old one (`adb install -r <new>.apk`). Your dock and settings
+  are kept. Releases are signed with the same key; Android refuses an update signed with a
   different key (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) — do not uninstall to get around this unless you accept
   losing your settings.
 - **Rollback**: Android does not allow installing an older version over a newer one. To return to an older
-  release, uninstall ZeroPulse TV (this deletes its settings and pairing) and install the older APK. Undo the
+  release, uninstall ZeroPulse TV (this deletes its settings) and install the older APK. Undo the
   advanced Home steps first if you used them.
 - There is no automatic update check; watch the Releases page.
-
-## 7. JARVIS (optional)
-
-Pairing needs a PC running an OpenPulse gateway with the TV link. Setup and security model:
-[docs/JARVIS.md](docs/JARVIS.md). The TV never needs JARVIS to work.
 
 ## Troubleshooting
 
@@ -124,5 +119,3 @@ Pairing needs a PC running an OpenPulse gateway with the TV link. Setup and secu
 | `adb connect` fails | Debugging off, wrong IP, or the TV is in standby — wake it and retry. |
 | App installed but Home still opens Google TV | Expected on Google TV; see section 4. |
 | Inputs screen shows no tuner / wrong names | Inputs come from Android's TV input service; brands differ. See COMPATIBILITY.md. |
-| JARVIS says "Can't reach the PC" | PC asleep, OpenPulse not running, TV link not enabled, or the TV's address is not allowed in the gateway's `allowFrom`. |
-| JARVIS says "PC identity changed" | The PC's TV-link certificate was replaced; enter a new code from `openpulse tv invite` under **Re-verify PC**. |

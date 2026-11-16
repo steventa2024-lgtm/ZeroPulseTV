@@ -6,9 +6,9 @@ const css = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
 const js = await readFile(new URL('./app.js', import.meta.url), 'utf8');
 const config = JSON.parse(await readFile(new URL('./release.json', import.meta.url), 'utf8'));
 test('release pins exact version-specific public APK', () => {
- assert.equal(config.apk, 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk');
- assert.equal(config.bytes, 5744160);
- assert.equal(config.sha256, 'ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401');
+ assert.equal(config.apk, 'https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk');
+ assert.equal(config.bytes, 9894706);
+ assert.equal(config.sha256, 'c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7');
  assert.equal(config.certificate, '0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd');
 });
 test('all download CTA hrefs share the authoritative template', () => {
@@ -22,10 +22,10 @@ test('technical fingerprint disclosure is closed by default', () => {
  const technical = html.slice(html.indexOf('<details class="technical">'), html.indexOf('<section id="faq"'));
  assert.ok(technical.includes('{{SHA256}}') && technical.includes('{{CERTIFICATE}}'));
 });
-test('three ordered setup panels with TV and computer instructions', () => {
+test('three ordered setup panels cover TV setup, Downloader, and Wireless ADB', () => {
  assert.equal((html.match(/class="step" data-step=/g)||[]).length, 3);
  assert.match(html, /data-step="1"[^>]*hidden/); assert.match(html, /data-step="2"[^>]*hidden/);
- assert.ok(html.includes('local Claude Code') && html.includes('same trusted Wi-Fi'));
+ assert.ok(html.includes('same trusted Wi-Fi') && html.includes('AFTVnews Downloader') && html.includes('adb install -r {{FILENAME}}'));
 });
 test('clipboard failures reveal manual copy and never false-success', () => {
  assert.ok(js.includes('await navigator.clipboard.writeText(text)'));
@@ -43,10 +43,10 @@ test('seven actual screenshot paths are declared and used', () => {
 test('no pairing-token or connected demo screenshot is promoted', () => {
  assert.ok(!html.includes('08-jarvis-pairing.png')); assert.ok(!html.includes('09-jarvis-connected.png'));
 });
-test('fresh-device and experimental JARVIS limitations remain visible', () => {
- assert.ok(html.includes('Fresh installs and other devices remain unverified'));
- assert.ok(html.includes('PUBLIC PAIRING NOT AVAILABLE') && html.includes('Not paired'));
- assert.ok(html.includes('No voice or always-listening'));
+test('fresh-device and ZPAPPS release notes remain visible', () => {
+ assert.ok(html.includes('fresh installs and other models remain unverified'));
+ assert.ok(html.includes('ZPAPPS TOOLBOX') && html.includes('20 TV apps'));
+ assert.ok(html.includes('No bundled JARVIS gateway or always-listening microphone'));
 });
 test('no universal rollback or automatic debloat claim', () => {
  assert.ok(html.includes('not a guaranteed one-line restore'));
@@ -77,13 +77,15 @@ test('primary copy control and plain-text download are prominent', () => {
  assert.ok(html.indexOf('id="copy-prompt"') < html.indexOf('Download prompt (.txt)'));
  assert.ok(html.indexOf('Download prompt (.txt)') < html.indexOf('data-step="0"'));
 });
-test('TV step covers pairing codes, displayed address/port and no port forwarding', () => {
+test('TV step covers developer options, unknown apps and no port forwarding', () => {
  const tv = html.slice(html.indexOf('data-step="0"'), html.indexOf('data-step="1"'));
- assert.ok(tv.includes('pairing code') && tv.includes('IP address and port') && tv.includes('Never expose ADB through router port forwarding'));
+ assert.ok(tv.includes('seven times') && tv.includes('Install unknown apps') && tv.includes('Never expose ADB through router port forwarding'));
 });
-test('computer step states local execution, no website connection, optional Claude and manual route', () => {
- const pc = html.slice(html.indexOf('data-step="1"'), html.indexOf('data-step="2"'));
- assert.ok(pc.includes('This website never connects to your TV') && pc.includes('Claude is not needed after installation') && pc.includes('Manual installation guide'));
+test('Downloader and Wireless ADB steps cover shortcode, install -r and appops', () => {
+ const dl = html.slice(html.indexOf('data-step="1"'), html.indexOf('data-step="2"'));
+ const adb = html.slice(html.indexOf('data-step="2"'), html.indexOf('wizard-bottom'));
+ assert.ok(dl.includes('shortcode') && dl.includes('Home launcher') && dl.includes('Manual installation guide'));
+ assert.ok(adb.includes('This website never connects to your TV') && adb.includes('5555') && adb.includes('adb install -r {{FILENAME}}') && adb.includes('appops set tv.calmhome.launcher REQUEST_INSTALL_PACKAGES allow'));
 });
 test('dialogs return focus to their opener', () => {
  assert.ok(js.includes('function openDialog') && js.includes("addEventListener('close'") && js.includes('returnTarget'));

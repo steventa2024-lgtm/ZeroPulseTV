@@ -34,16 +34,8 @@ beta. See the release notes for its status before installing.
   YouTube Music) and shows only those installed. Region-specific app variants are not in the default list;
   add them from All Apps.
 - **Wallpapers** are bundled at 1920×1080; there is no way to add your own in this version.
-- **JARVIS**
-  - Needs an OpenPulse gateway with the TV link on a PC on the same network. The TV link is **not yet in a
-    public OpenPulse release**, so JARVIS cannot be paired with a public gateway at the time of this beta.
-  - IPv4 addresses on the local network only (no host names, no internet relay).
-  - Reply speed depends entirely on the model your PC runs (the first reply after a model load can take
-    tens of seconds).
-  - The pairing form shows an example address ("e.g. 192.168.4.33"); use your PC's own address.
-  - Voice input is not implemented.
-- **Branding text.** Home shows "Powered by ZeroPulse AI" whether or not JARVIS is paired; without a paired
-  gateway, no AI features are active.
+- **Assistant.** Removed in 3.0.0-beta.7 (JARVIS, AI accounts, voice); there is no assistant in this version.
+- **Branding text.** Older builds showed "Powered by ZeroPulse AI"; there are no AI features in this version.
 - **Package name.** The app's package ID is `tv.calmhome.launcher`, inherited from the project's first
   version ("Calm Home"). It is kept so existing installations keep updating; see SECURITY.md.
 - **About screen** shows "Source 95a61a9" for this build: the commit label of the build that was tested; the

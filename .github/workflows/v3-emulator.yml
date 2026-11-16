@@ -1,0 +1,92 @@
+name: v3 Android TV emulator
+on:
+  push:
+    branches: [feat/zeropulsetv-v3-graphite-glass-claude-voice-20261104]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tv-emulator:
+    if: github.ref == 'refs/heads/feat/zeropulsetv-v3-graphite-glass-claude-voice-20261104'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      BUILD_TOOLS_VERSION: 36.0.0
+      EMU: emulator-5562
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build development launcher and instrumentation with one temporary test key
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          export ZP_KEYSTORE_PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$ZP_KEYSTORE_PASS"
+          keytool -genkeypair -storetype PKCS12 -keystore "$RUNNER_TEMP/emulator.p12" \
+            -storepass:env ZP_KEYSTORE_PASS -keypass:env ZP_KEYSTORE_PASS -alias fixture \
+            -keyalg RSA -keysize 2048 -validity 2 -dname 'CN=Ephemeral ZeroPulse Emulator'
+          bash launcher/build.sh --keystore "$RUNNER_TEMP/emulator.p12" --output "$RUNNER_TEMP/launcher.apk"
+          python3 qa/device/downloads/build.py --sdk "$ANDROID_HOME" --jdk "$JAVA_HOME" \
+            --build-tools "$BUILD_TOOLS_VERSION" --keystore "$RUNNER_TEMP/emulator.p12" --output "$RUNNER_TEMP/fixture-qa.apk"
+      - name: Provision disposable Android TV under preaccepted runner SDK licenses
+        run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          sdkmanager --sdk_root="$ANDROID_HOME" "emulator" "system-images;android-34;android-tv;x86" </dev/null
+          test -x "$ANDROID_HOME/emulator/emulator"
+          test -d "$ANDROID_HOME/system-images/android-34/android-tv/x86"
+          test -c /dev/kvm
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          # Use one explicit AVD directory for both avdmanager and the emulator.
+          export ANDROID_USER_HOME="$HOME/.android"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/zp-android/avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME" "$RUNNER_TEMP/emulator-evidence"
+          # QEMU reads ~/.android/adbkey and injects its public half at boot on a new AVD.
+          if [[ ! -s "$ANDROID_USER_HOME/adbkey" ]]; then adb keygen "$ANDROID_USER_HOME/adbkey"; fi
+          export ADB_VENDOR_KEYS="$ANDROID_USER_HOME/adbkey"
+          echo "ADB_VENDOR_KEYS=$ADB_VENDOR_KEYS" >> "$GITHUB_ENV"
+          adb start-server
+          avd_path="$ANDROID_AVD_HOME/zp-ci-tv.avd"
+          printf 'no\n' | avdmanager create avd -n zp-ci-tv -p "$avd_path" -k 'system-images;android-34;android-tv;x86' -d tv_1080p
+          test -s "$avd_path/config.ini"
+          printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-34\n' "$avd_path" > "$ANDROID_AVD_HOME/zp-ci-tv.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx zp-ci-tv
+          "$ANDROID_HOME/emulator/emulator" -avd zp-ci-tv -port 5562 -no-window -no-snapshot -no-audio \
+            -no-boot-anim -gpu software > "$RUNNER_TEMP/emulator-evidence/boot.txt" 2>&1 &
+          avd_pid=$!
+          for poll in {1..150}; do
+            if ! kill -0 "$avd_pid" 2>/dev/null; then cat "$RUNNER_TEMP/emulator-evidence/boot.txt"; exit 1; fi
+            if [[ "$(adb -s "$EMU" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then break; fi
+            sleep 2
+          done
+          test "$(adb -s "$EMU" shell getprop sys.boot_completed | tr -d '\r')" = 1
+          test "$(adb -s "$EMU" shell getprop ro.kernel.qemu | tr -d '\r')" = 1
+          adb -s "$EMU" shell wm dismiss-keyguard
+      - name: Install test packages through Android
+        id: install-fixtures
+        run: |
+          for apk in launcher fixture-qa; do
+            if ! timeout 120 adb -s "$EMU" install "$RUNNER_TEMP/$apk.apk"; then
+              adb -s "$EMU" exec-out screencap -p > "$RUNNER_TEMP/emulator-evidence/install-$apk.png"
+              adb -s "$EMU" shell dumpsys activity activities > "$RUNNER_TEMP/emulator-evidence/install-$apk-activities.txt"
+              exit 1
+            fi
+          done
+      - name: Test TV navigation, transfer, reboot recovery and Android install callbacks
+        run: python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence"
+      - name: Reboot during a partially transferred APK
+        if: ${{ !cancelled() && steps.install-fixtures.outcome == 'success' }}
+        run: |
+          python3 qa/device/downloads/emulator.py --serial "$EMU" --evidence "$RUNNER_TEMP/emulator-evidence/inflight" --inflight-only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-TV-emulator-only-${{ github.run_id }}
+          path: ${{ runner.temp }}/emulator-evidence
+          retention-days: 5
+          if-no-files-found: ignore

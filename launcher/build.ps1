@@ -23,7 +23,8 @@ $src   = $PSScriptRoot
 $tools = (Resolve-Path $Tools).Path
 $env:JAVA_HOME = Join-Path $tools "jdk"
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-$bt  = Join-Path $tools "sdk\build-tools\android-14"
+. (Join-Path $PSScriptRoot "toolchain.ps1")
+$bt = Get-BuildTools $tools
 $jar = Join-Path $tools "sdk\platforms\android-34\android.jar"
 $out = Join-Path $src "build"
 foreach ($need in @("$env:JAVA_HOME\bin\javac.exe", "$bt\aapt2.exe", "$bt\d8.bat", "$bt\apksigner.bat", $jar)) {
@@ -38,14 +39,14 @@ function Run([string]$exe, [string[]]$a) {
     if ($LASTEXITCODE -ne 0) { throw "$exe failed ($LASTEXITCODE)" }
 }
 
-if (Test-Path $out) { Remove-Item -Recurse -Force $out }
+if (Test-Path $out) { Clear-BuildDirectory $src $out }
 New-Item -ItemType Directory -Force "$out\classes" | Out-Null
 
 "== aapt2 compile + link (manifest + resources)"
 Run "$bt\aapt2.exe" @("compile", "--dir", "$src\res", "-o", "$out\res.zip")
 # Assets are added with jar below: aapt2 -A on Windows stores paths with backslashes, which Android can't open.
 Run "$bt\aapt2.exe" @("link", "-o", "$out\base.apk", "-I", $jar, "--manifest", "$src\AndroidManifest.xml",
-    "--min-sdk-version", "26", "--target-sdk-version", "31", "$out\res.zip", "--java", "$out\gen", "--auto-add-overlay")
+    "--min-sdk-version", "26", "--target-sdk-version", "34", "$out\res.zip", "--java", "$out\gen", "--auto-add-overlay")
 
 "== javac"
 $java = @(Get-ChildItem "$src\src" -Recurse -Filter *.java | ForEach-Object FullName)

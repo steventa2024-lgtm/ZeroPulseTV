@@ -6,19 +6,19 @@ One Android app (`tv.calmhome.launcher`), Java 8 language level, Android framewo
 |---|---|
 | `MainActivity` | Home: wallpaper stage, greeting, clock, dock, navigation chips; hosts the panels |
 | `screens/` | Full-screen panels: All Apps, Inputs, Wallpapers, Settings, About, menus |
-| `assistant/` | Assistant screen, holographic reactor view, Keystore-backed JARVIS credentials |
-| `jarvis/` | Pure-Java JARVIS client: JSON, pairing code, pinned TLS trust, WebSocket client, gateway protocol, session/retry policy, TV-action suggestions (unit-testable on a PC) |
 | `core/` | Pure logic: dock list, greeting, wallpaper catalogue, typed command parser |
 | `data/` | Preferences, installed apps, TV inputs, wallpaper decoding with bitmap reuse |
+| `downloads/` | Private SQLite history, persistent Android jobs, bounded HTTPS transfers, APK inspection and PackageInstaller sessions |
 | `ui/` | Theme tokens, logo, glyph icons, shared widgets |
 
 Design rules:
 
-- **Home never waits for the network.** Only the Assistant screen creates a JARVIS session, and it closes it in
-  `onStop`.
+- **Home never waits for the network.** Nothing on Home opens a connection; downloads run in Android's job scheduler.
 - **Truthful status.** Every connection state shown comes from the session state machine.
 - **No privileged access.** Apps are launched with their launch intents; inputs are switched with the public
   TV input framework intents.
 - **Memory.** Two reusable 1920×1080 wallpaper bitmaps; no per-rotation allocation.
-- **Saved data.** One preferences file for launcher settings (`calmhome`, kept from version 1.0 so updates keep
-  the dock), one for the JARVIS pairing (`zp_jarvis`), both excluded from backup.
+- **Saved data.** The existing `calmhome` store retains settings and the dock (the old `zp_jarvis` pairing store is deleted once by `LegacyAssistantCleanup`). The optional downloader has a separate source catalog, private database and APK directory.
+- **Rendering.** The initial API 31 RenderEffect blurred the full-size wallpaper layers behind panels. Physical testing prompted a cheaper implementation. A worker now decodes the current photo at one-eighth resolution and filters it once. A single cached image sits behind the glass panels while the full-size Home layers are hidden. The sharp wallpaper and gradient remain available until that cache is ready, including on older devices. The credit follows the same source photo. Focus and clock updates never recalculate the blur.
+
+The Assistant (JARVIS), its AI accounts and its voice features were removed from ZeroPulse TV in 3.0.0-beta.7; the update deletes what they stored on the TV (see [CHANGELOG](CHANGELOG.md)).

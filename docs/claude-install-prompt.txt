@@ -1,24 +1,24 @@
-Install the official ZeroPulse TV 2.1 public beta on my own Android TV over my local Wi-Fi. You are running in Claude Code on my computer with local shell access. Execute the installation after the checks and approvals below; do not merely explain the commands. Keep normal Claude Code permission prompts enabled.
+Install the official ZeroPulse TV 3.0.0-beta.8-zpapps release on my own Android TV over my local Wi-Fi. You are running in Claude Code on my computer with local shell access. Execute the installation after the checks and approvals below; do not merely explain the commands. Keep normal Claude Code permission prompts enabled.
 
 MY DETAILS (ask me for anything I have left blank):
 TV brand/model:
-TV IP address and ADB port shown by the TV, if available:
+TV IP address and ADB port shown by the TV, if available (usually 5555 for Wireless ADB):
 Computer OS (Windows / macOS / Linux):
 Downloaded APK full path (or ask before downloading the exact file below):
 Preferred dock apps:
 
 OFFICIAL RELEASE — use these exact values, never a latest-release URL:
 Repository: https://github.com/steventa2024-lgtm/ZeroPulseTV
-Release: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/v2.1.0-beta.1
-APK: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/ZeroPulseTV-v2.1.0-beta.1.apk
-Checksums: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v2.1.0-beta.1/SHA256SUMS.txt
-Filename: ZeroPulseTV-v2.1.0-beta.1.apk
-APK SHA-256: ac6ac5a49fa1617b155d048ad17aaeea8bc74fc47ac195ca823d6bd5d52f0401
-APK size: 5744160 bytes
+Release: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/tag/v3.0.0-beta.8-zpapps
+APK: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk
+Checksums: https://github.com/steventa2024-lgtm/ZeroPulseTV/releases/download/v3.0.0-beta.8-zpapps/SHA256SUMS.txt
+Filename: ZeroPulseTV-3.0.0-beta.8-zpapps-3006.apk
+APK SHA-256: c73a24bebb2d769e47027961561fd943519fa6349a6f4f8c7d14ed0b02e28ef7
+APK size: 9894706 bytes
 Signing-certificate SHA-256: 0d6a6f7b254e84003ddbfc274233ecdc0b8f8af5442114f072267b7146dee4cd
-Package: tv.calmhome.launcher; versionName 2.1; versionCode 21; minSdk 26 (Android 8.0).
+Package: tv.calmhome.launcher; versionName 3.0.0-beta.8-zpapps; versionCode 3006; minSdk 26 (Android 8.0); targetSdk 34.
 Current installation/safety guide: https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/INSTALL.md
-Compatibility: https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/v2.1.0-beta.1/COMPATIBILITY.md
+Compatibility: https://github.com/steventa2024-lgtm/ZeroPulseTV/blob/main/COMPATIBILITY.md
 
 IMPORTANT LIMITS:
 This release was tested as an update on one TCL G10 / Google TV / Android 12. A clean installation and other models are not verified. A prompt cannot guarantee installation or recovery on every television. Installing the APK and making it the default Home app are separate operations. This is NOT a universal debloater.
@@ -37,7 +37,7 @@ Record a timestamped local baseline: device identity, package/version and enable
 Check for an installed newer version or a different signing identity; stop if either prevents a safe in-place update. Prepare a device-targeted recovery note/script for the original Home state BEFORE any default-Home changes. It must restore only explicitly changed state, with no uninstall or data clear. Merely installing an app should not require stock-package changes. Do not promise an APK downgrade without data loss; the private developer recovery scripts are not part of this public release.
 
 4. ASK, THEN INSTALL THE VERIFIED APK
-Show the confirmed TV, exact file, hash check, package/version, requested INTERNET permission, and recovery limitations. Ask me to approve installation on that TV. Then install using adb -s <verified-serial> install -r <verified-apk-path>. Check the actual command result and installed package/version. Preserve all installed apps, package states, favorites, settings and existing pairing. Never uninstall to fix a signature or version conflict.
+Show the confirmed TV, exact file, hash check, package/version, requested permissions, and recovery limitations. Ask me to approve installation on that TV. Then install using `adb -s <verified-serial> install -r <verified-apk-path>` (never uninstall first so saved dock and settings stay intact), and optionally grant app-install permission for ZPAPPS Toolbox using `adb -s <verified-serial> shell appops set tv.calmhome.launcher REQUEST_INSTALL_PACKAGES allow` if I approve. Check the actual command result and installed package/version. Preserve all installed apps, package states, favorites and settings. Never uninstall to fix a signature or version conflict.
 Open ZeroPulse, capture a real TV screenshot where permitted, and test navigation, app discovery and local app launching. Ask which installed apps I want in the dock before changing favorites. Do not install streaming apps automatically. Do not capture DRM playback or secrets.
 
 5. OPTIONAL DEFAULT-HOME SETUP — SEPARATE APPROVAL

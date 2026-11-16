@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Nothing leaves the TV through cloud backup or device-to-device transfer: in particular the JARVIS
-     pairing (zp_jarvis.xml: PC address, certificate pin, Keystore-encrypted device token). -->
+<!-- Nothing leaves the TV through cloud backup or device-to-device transfer: settings, the dock, downloads and the
+     optional modules' data stay on this TV. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="root" path="." />

@@ -1,0 +1,212 @@
+{
+  "categories": [
+    "All",
+    "Live TV & Sports",
+    "IPTV Players",
+    "Media Players",
+    "Movies & VOD",
+    "Utilities"
+  ],
+  "apps": [
+    {
+      "id": "ak47sports",
+      "name": "AK47 Sports",
+      "category": "Live TV & Sports",
+      "packageName": "com.ak47.sports",
+      "code": "3975858",
+      "accentHex": "#E50914",
+      "tagline": "Multi-link live sports & combat events",
+      "iconUrl": "https://ak47sports.app/wp-content/uploads/2026/05/cropped-AK47-Sports-1-192x192.webp"
+    },
+    {
+      "id": "sportzx",
+      "name": "SportzX",
+      "category": "Live TV & Sports",
+      "packageName": "com.sportzx.tv",
+      "code": "1499898",
+      "accentHex": "#00B4D8",
+      "tagline": "200+ global live sports channels",
+      "iconUrl": "https://sportzx.org/wp-content/uploads/2026/05/cropped-Sportzx-TV.webp"
+    },
+    {
+      "id": "fctv33",
+      "name": "FCTV33 (RBTV77)",
+      "category": "Live TV & Sports",
+      "packageName": "com.fctv33.tv",
+      "code": "3854690",
+      "accentHex": "#00C853",
+      "tagline": "International live sports & entertainment",
+      "iconUrl": "https://fctv33.vip/wp-content/uploads/2026/02/image-1-300x300.webp"
+    },
+    {
+      "id": "cricfytv",
+      "name": "CricFy TV",
+      "category": "Live TV & Sports",
+      "packageName": "com.cricfy.tv",
+      "code": "6281845",
+      "accentHex": "#FF6B00",
+      "tagline": "Live global sports & M3U playlist support",
+      "iconUrl": "https://www.google.com/s2/favicons?domain=cricfy.net&sz=128"
+    },
+    {
+      "id": "geesports",
+      "name": "GeeSports",
+      "category": "Live TV & Sports",
+      "packageName": "com.geesports.tv",
+      "code": "8338279",
+      "accentHex": "#2979FF",
+      "tagline": "Live HD sports channels & match events",
+      "iconUrl": ""
+    },
+    {
+      "id": "1pixmedia",
+      "name": "1 Pix Media",
+      "category": "Live TV & Sports",
+      "packageName": "com.onepix.media",
+      "code": "790093",
+      "accentHex": "#7C4DFF",
+      "tagline": "Live TV & sports (pair with Wuffy Player)",
+      "iconUrl": ""
+    },
+    {
+      "id": "tivimate",
+      "name": "TiviMate IPTV",
+      "category": "IPTV Players",
+      "packageName": "ar.tvplayer.tv",
+      "code": "272483",
+      "accentHex": "#2979FF",
+      "tagline": "Premium TV EPG guide for M3U & Xtream",
+      "iconUrl": "https://play-lh.googleusercontent.com/lXaMnFHizRDP9eHCRJCMwy9qYS2U9FDvwsNOUO9qappEEfhNzSuC6r2YTC8a-RYQqlCBc_hKiYOH2UXgtuiP=w240-h240"
+    },
+    {
+      "id": "xciptv",
+      "name": "XCIPTV Player",
+      "category": "IPTV Players",
+      "packageName": "com.nathnetwork.xciptv",
+      "code": "537992",
+      "accentHex": "#00E5FF",
+      "tagline": "Built-in EPG, VOD & Xtream Codes player",
+      "iconUrl": "https://play-lh.googleusercontent.com/tjOabfZ3dXAOppuHCyUaTehPvO7dPwv5DNggDQRrCg2bFZLNalPsgWwGvWbjWx-uziCZMPzGXCHm5buW9wrF4g=w240-h240"
+    },
+    {
+      "id": "streamvault",
+      "name": "StreamVault",
+      "category": "IPTV Players",
+      "packageName": "com.streamvault.iptv",
+      "code": "6443624",
+      "accentHex": "#00C853",
+      "tagline": "Clean live TV EPG guide & Xtream player",
+      "iconUrl": ""
+    },
+    {
+      "id": "wuffy",
+      "name": "Wuffy Player",
+      "category": "Media Players",
+      "packageName": "co.wuffy.player",
+      "code": "337646",
+      "accentHex": "#FF9100",
+      "tagline": "Required stream engine for 1 Pix Media",
+      "iconUrl": "https://www.google.com/s2/favicons?domain=wuffy.co&sz=128"
+    },
+    {
+      "id": "vlc",
+      "name": "VLC for Android",
+      "category": "Media Players",
+      "packageName": "org.videolan.vlc",
+      "code": "921602",
+      "accentHex": "#FF6D00",
+      "tagline": "Universal 4K & network media player",
+      "iconUrl": "https://play-lh.googleusercontent.com/BG5YwziGHjh0wvWg6VO9c3iprYa3vFww1CnNqPvFszUVxcY4yB29dy7t2jsLwwI4jAqX08_--12FmMxgNG1JFg=w240-h240"
+    },
+    {
+      "id": "stremio",
+      "name": "Stremio",
+      "category": "Movies & VOD",
+      "packageName": "com.stremio.one",
+      "code": "71893",
+      "accentHex": "#8A2BE2",
+      "tagline": "4K HDR addon-powered streaming hub",
+      "iconUrl": "https://raw.githubusercontent.com/Stremio/stremio-web/development/assets/images/icon.png"
+    },
+    {
+      "id": "nuvio",
+      "name": "Nuvio",
+      "category": "Movies & VOD",
+      "packageName": "com.nuvio.tv",
+      "code": "6817136",
+      "accentHex": "#00E5FF",
+      "tagline": "Modern plugin-based 4K media hub",
+      "iconUrl": "https://www.google.com/s2/favicons?domain=nuvioapp.space&sz=128"
+    },
+    {
+      "id": "cloudstream",
+      "name": "CloudStream",
+      "category": "Movies & VOD",
+      "packageName": "com.lagradost.cloudstream3",
+      "code": "4132632",
+      "accentHex": "#3D5AFE",
+      "tagline": "Ad-free multi-repository movies & anime",
+      "iconUrl": "https://raw.githubusercontent.com/recloudstream/cloudstream/master/app/src/main/ic_launcher-playstore.png"
+    },
+    {
+      "id": "flixvision",
+      "name": "Flix Vision",
+      "category": "Movies & VOD",
+      "packageName": "com.flixvision.tv",
+      "code": "6101716",
+      "accentHex": "#FF1744",
+      "tagline": "Movies, series, anime & live channels",
+      "iconUrl": "https://flixvision.co/wp-content/uploads/2026/08/flixvision-removebg-preview-150x150.webp"
+    },
+    {
+      "id": "kodi",
+      "name": "Kodi 21 Omega",
+      "category": "Movies & VOD",
+      "packageName": "org.xbmc.kodi",
+      "code": "4697031",
+      "accentHex": "#17B2E7",
+      "tagline": "Full home theater & custom build engine",
+      "iconUrl": "https://raw.githubusercontent.com/xbmc/xbmc/master/media/icon256x256.png"
+    },
+    {
+      "id": "smarttube",
+      "name": "SmartTube",
+      "category": "Utilities",
+      "packageName": "com.teamsmart.videomanager.tv",
+      "code": "54794",
+      "accentHex": "#FF0000",
+      "tagline": "Ad-free 4K YouTube client for Android TV",
+      "iconUrl": "https://raw.githubusercontent.com/yuliskov/SmartTube/master/smarttubetv/src/ststable/res/mipmap-nodpi/app_icon.png"
+    },
+    {
+      "id": "adguard",
+      "name": "AdGuard TV",
+      "category": "Utilities",
+      "packageName": "com.adguard.android",
+      "code": "1900064",
+      "accentHex": "#68BC71",
+      "tagline": "System-wide ad & popup redirect blocker",
+      "iconUrl": "https://www.google.com/s2/favicons?domain=adguard.com&sz=128"
+    },
+    {
+      "id": "virustotal",
+      "name": "VirusTotal",
+      "category": "Utilities",
+      "packageName": "com.funnycat.virustotal",
+      "code": "7801475",
+      "accentHex": "#394EFF",
+      "tagline": "Scan sideloaded APKs before installing",
+      "iconUrl": "https://play-lh.googleusercontent.com/sGPQMb5fLb4LbJZ5jrbpkGEy3LlHkqThmBXAPqQyadXaEjsUPZAezp7KjgT-ufca1U8qVSJt_qWoqE4xl5ep=w240-h240"
+    },
+    {
+      "id": "sdmaid",
+      "name": "SD Maid Pro",
+      "category": "Utilities",
+      "packageName": "eu.thedarken.sdm",
+      "code": "8720930",
+      "accentHex": "#00BFA5",
+      "tagline": "Storage cleaner & cache manager for TV",
+      "iconUrl": "https://play-lh.googleusercontent.com/hCO0dtqMxIJXdcMfaWEIxFeo_TI6DJLBtjcpLsIgT5zDMchE2T2qmHuzWuFqdoOqLpKav5rr7ioyWdoGKp7Fcz8=w240-h240"
+    }
+  ]
+}

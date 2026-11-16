@@ -23,7 +23,7 @@ for (const [name, expectedBlob] of Object.entries(release.screenshots)) {
 await copyFile(join(repo, 'branding/logo/zeropulse-tv-wordmark.svg'), join(out, 'assets/wordmark.svg'));
 await copyFile(join(repo, 'branding/logo/zeropulse-pulse-mark.svg'), join(out, 'assets/pulse.svg'));
 const prompt = await readFile(join(repo, 'docs/claude-install-prompt.txt'), 'utf8');
-if (!prompt.startsWith('Install the official ZeroPulse TV 2.1 public beta') || !prompt.includes(release.sha256) || !prompt.includes(release.apk)) throw new Error('Installation prompt/release mismatch');
+if (!prompt.startsWith('Install the official ZeroPulse TV 3.0.0-beta.8-zpapps release') || !prompt.includes(release.sha256) || !prompt.includes(release.apk)) throw new Error('Installation prompt/release mismatch');
 const promptBytes = await readFile(join(repo, 'docs/claude-install-prompt.txt'));
 await writeFile(join(out, 'claude-install-prompt.txt'), promptBytes);
 const vars = {
